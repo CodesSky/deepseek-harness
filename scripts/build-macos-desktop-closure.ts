@@ -15,7 +15,23 @@ import { chmod, cp, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } f
 import { dirname, join, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web'
 import { parseArgs } from 'node:util'
+
+/**
+ * Write a `fetch` body to disk. Casts the DOM `ReadableStream` from
+ * `Response.body` to Node's `stream/web` type so `Readable.fromWeb` accepts it
+ * (the two lib definitions disagree on BYOB reader generics).
+ *
+ * @param body - Non-null `Response.body` from `fetch`.
+ * @param dest - Destination file path.
+ */
+async function writeFetchBody(body: ReadableStream<Uint8Array>, dest: string): Promise<void> {
+  await pipeline(
+    Readable.fromWeb(body as NodeWebReadableStream<Uint8Array>),
+    createWriteStream(dest),
+  )
+}
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -417,7 +433,7 @@ class MacosDesktopClosureBuild {
       if (!response.ok || response.body === null) {
         throw new Error(`build-macos-desktop-closure: failed to download ${url}: HTTP ${response.status}`)
       }
-      await pipeline(Readable.fromWeb(response.body), createWriteStream(archivePath))
+      await writeFetchBody(response.body, archivePath)
     } else {
       console.log(`build-macos-desktop-closure: reusing cached ${archivePath}`)
     }
@@ -583,7 +599,7 @@ class MacosDesktopClosureBuild {
       if (!response.ok || response.body === null) {
         throw new Error(`build-macos-desktop-closure: failed to download ${packUrl}: HTTP ${response.status}`)
       }
-      await pipeline(Readable.fromWeb(response.body), createWriteStream(tarballPath))
+      await writeFetchBody(response.body, tarballPath)
     } else {
       console.log(`build-macos-desktop-closure: reusing cached ${tarballPath}`)
     }
