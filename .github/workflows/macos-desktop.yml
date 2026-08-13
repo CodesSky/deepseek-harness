@@ -1,0 +1,96 @@
+name: macOS desktop
+
+# Build the macOS arm64 desktop GUI closure, Tauri shell, App Bundle, and DMG.
+# See .agents/notes/implemented/architecture/2026-08-13-macos-arm64-tauri-desktop-shell.md
+# and packaging/macos/README.md. Ad-hoc codesign only (no Developer ID / notarization).
+# Run manually, or label a PR `macos-desktop` (remove and reapply to rerun).
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: macos-desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+  PRIMARY_NODE_VERSION: '24'
+  # Prefer a Node dist mirror when nodejs.org is slow on hosted runners.
+  DSH_NODE_DIST_BASE: https://npmmirror.com/mirrors/node
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  package:
+    name: package macos-arm64 desktop
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'macos-desktop'
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Cargo target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            packaging/macos/shell/src-tauri/target
+          key: ${{ runner.os }}-macos-desktop-shell-${{ hashFiles('packaging/macos/shell/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-macos-desktop-shell-
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop closure
+        run: pnpm run build:macos-desktop-closure
+
+      - name: Package App Bundle + DMG
+        run: pnpm run package:macos-desktop -- --skip-closure
+
+      - name: Report shell vs DMG sizes
+        run: |
+          set -euo pipefail
+          shell_bin="packaging/macos/shell/src-tauri/target/release/DeepSeekHarness"
+          app="dist-macos-desktop/DeepSeek Harness.app"
+          dmg="dist-macos-desktop/DeepSeek-Harness-macos-arm64.dmg"
+          tarxz="dist-macos-desktop/DeepSeek-Harness-macos-arm64.app.tar.xz"
+          echo "shell binary: $(du -h "$shell_bin" | awk '{print $1}') ($shell_bin)"
+          echo "MacOS binary: $(du -h "$app/Contents/MacOS/DeepSeekHarness" | awk '{print $1}')"
+          echo "app bundle:   $(du -sh "$app" | awk '{print $1}')"
+          echo "Resources/node: $(du -sh "$app/Contents/Resources/node" | awk '{print $1}')"
+          echo "Resources/dsh:  $(du -sh "$app/Contents/Resources/dsh" | awk '{print $1}')"
+          echo "Resources/pnpm: $(du -sh "$app/Contents/Resources/pnpm" | awk '{print $1}')"
+          echo "dmg:          $(du -h "$dmg" | awk '{print $1}')"
+          echo "tar.xz:       $(du -h "$tarxz" | awk '{print $1}')"
+          file "$app/Contents/MacOS/DeepSeekHarness"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-harness-macos-arm64-desktop
+          path: |
+            dist-macos-desktop/DeepSeek-Harness-macos-arm64.dmg
+            dist-macos-desktop/DeepSeek-Harness-macos-arm64.app.tar.xz
+          if-no-files-found: error
+          retention-days: 14

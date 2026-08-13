@@ -1,0 +1,62 @@
+#!/bin/zsh
+# Fallback App Bundle launcher (not the default): start embedded `dsh web`, open
+# the printUrl line in the default browser, stop the server on exit.
+# Prefer the Tauri WKWebView shell under packaging/macos/shell/; install this
+# with: pnpm run package:macos-desktop -- --browser-launcher
+set -euo pipefail
+
+CONTENTS="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+RESOURCES="$CONTENTS/Resources"
+export PATH="$RESOURCES/pnpm/bin:$RESOURCES/node/bin:$RESOURCES/bin${PATH:+:$PATH}"
+
+NODE="$RESOURCES/node/bin/node"
+DSH_JS="$RESOURCES/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js"
+
+if [[ ! -x "$NODE" ]]; then
+  osascript -e 'display alert "DeepSeek Harness" message "Embedded Node is missing from this app bundle." as critical' >/dev/null 2>&1 || true
+  echo "DeepSeekHarness: embedded Node missing at $NODE" >&2
+  exit 1
+fi
+if [[ ! -f "$DSH_JS" ]]; then
+  osascript -e 'display alert "DeepSeek Harness" message "Embedded dsh install is missing from this app bundle." as critical' >/dev/null 2>&1 || true
+  echo "DeepSeekHarness: deployed CLI entry missing at $DSH_JS" >&2
+  exit 1
+fi
+
+LOG="$(mktemp -t dsh-web)"
+OPENED=0
+DSH_PID=""
+
+cleanup() {
+  if [[ -n "${DSH_PID}" ]] && kill -0 "$DSH_PID" 2>/dev/null; then
+    kill "$DSH_PID" 2>/dev/null || true
+    wait "$DSH_PID" 2>/dev/null || true
+  fi
+  rm -f "$LOG"
+}
+trap cleanup EXIT INT TERM HUP
+
+"$NODE" "$DSH_JS" web "$@" >"$LOG" 2>&1 &
+DSH_PID=$!
+
+for _ in {1..120}; do
+  if ! kill -0 "$DSH_PID" 2>/dev/null; then
+    break
+  fi
+  if [[ $OPENED -eq 0 ]] && grep -E '^dsh web: https?://' "$LOG" >/dev/null 2>&1; then
+    url="$(grep -E '^dsh web: https?://' "$LOG" | head -n 1 | sed -E 's/^dsh web: (https?:\/\/[^[:space:]]+).*/\1/')"
+    if [[ -n "$url" ]]; then
+      open "$url"
+      OPENED=1
+      wait "$DSH_PID"
+      exit $?
+    fi
+  fi
+  sleep 0.5
+done
+
+msg="$(tail -n 30 "$LOG" 2>/dev/null || true)"
+osascript -e "display alert \"DeepSeek Harness\" message \"Web UI did not become ready.\n\n${msg}\" as critical" >/dev/null 2>&1 || true
+echo "DeepSeekHarness: web UI did not become ready; last log:" >&2
+echo "$msg" >&2
+exit 1

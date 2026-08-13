@@ -139,6 +139,9 @@
     "demo:acp": "node --import tsx packages/examples/acp-demo/src/bin.ts --config examples/acp-agent/cordis.yml",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
     "dev:web": "tsx scripts/dev-web.ts --poll",
+    "build:macos-desktop-closure": "CI=true tsx scripts/build-macos-desktop-closure.ts",
+    "build:macos-desktop-shell": "cargo build --release --manifest-path packaging/macos/shell/src-tauri/Cargo.toml",
+    "package:macos-desktop": "CI=true tsx scripts/package-macos-desktop.ts",
     "postinstall": "node scripts/install-lefthook.mjs"
   },
   "devDependencies": {

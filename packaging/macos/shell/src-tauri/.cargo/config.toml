@@ -1,0 +1,6 @@
+# Prefer sparse crates.io protocol (avoids hanging git-index fetches on some networks).
+# For a regional mirror when crates.io is slow, set temporarily:
+#   CARGO_SOURCE_CRATES_IO_REPLACE_WITH=rsproxy-sparse
+# and add an optional [source.rsproxy-sparse] registry in a user-level ~/.cargo/config.toml.
+[registries.crates-io]
+protocol = "sparse"

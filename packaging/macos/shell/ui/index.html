@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeepSeek Harness</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1a1a1a;
+        --muted: #5c5c5c;
+        --bg: #f6f6f4;
+        --err: #a11;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #f2f2f2;
+          --muted: #a8a8a8;
+          --bg: #121212;
+          --err: #ff8a8a;
+        }
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      main {
+        box-sizing: border-box;
+        min-height: 100%;
+        display: grid;
+        place-content: center;
+        padding: 2rem;
+        text-align: center;
+        gap: 0.75rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 36rem;
+      }
+      pre {
+        margin: 0.5rem 0 0;
+        text-align: left;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--err);
+        font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        max-width: 40rem;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Starting DeepSeek Harness…</h1>
+      <p id="detail">Launching the local web UI. This window will open the app when the server is ready.</p>
+      <pre id="log" class="hidden"></pre>
+    </main>
+    <script>
+      window.__dshShell = {
+        showError(title, detail, logText) {
+          document.getElementById("title").textContent = title
+          document.getElementById("detail").textContent = detail
+          const log = document.getElementById("log")
+          if (logText) {
+            log.textContent = logText
+            log.classList.remove("hidden")
+          }
+        },
+      }
+    </script>
+  </body>
+</html>

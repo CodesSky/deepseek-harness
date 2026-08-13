@@ -1,0 +1,27 @@
+#!/bin/sh
+# PATH-aware CLI wrapper for the macOS desktop install closure.
+# Puts the embedded pnpm and Node ahead of PATH so `dsh plugin` → spawnSync('pnpm')
+# resolves the in-tree binary, then execs the deployed CLI entry.
+set -eu
+
+HERE="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+ROOT="$(CDPATH= cd -- "$HERE/.." && pwd)"
+NODE="$ROOT/node/bin/node"
+DSH_JS="$ROOT/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js"
+PNPM_BIN_DIR="$ROOT/pnpm/bin"
+
+if [ ! -x "$NODE" ]; then
+  echo "dsh: embedded Node missing at $NODE" >&2
+  exit 1
+fi
+if [ ! -f "$DSH_JS" ]; then
+  echo "dsh: deployed CLI entry missing at $DSH_JS" >&2
+  exit 1
+fi
+if [ ! -d "$PNPM_BIN_DIR" ]; then
+  echo "dsh: embedded pnpm bin dir missing at $PNPM_BIN_DIR" >&2
+  exit 1
+fi
+
+export PATH="$PNPM_BIN_DIR:$ROOT/node/bin:$HERE${PATH:+:$PATH}"
+exec "$NODE" "$DSH_JS" "$@"
