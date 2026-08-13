@@ -22,7 +22,7 @@ Release Cargo profile: `lto`, `strip`, `opt-level = "z"`, `panic = "abort"`. mac
 |---|---|
 | [`closure-manifest/`](closure-manifest/package.json) | Pure dependency deploy root (`dsh-macos-desktop-pkg`), analogous to [`python/sdk-runtime`](../../python/sdk-runtime/package.json) for the SEA/JSON-RPC carrier |
 | [`Info.plist`](Info.plist) | App Bundle metadata (`ai.deepseek.dsh.desktop`); `CFBundleIconFile` = `AppIcon` |
-| [`icon/`](icon/) | App icon sources: `icon-1024.png`, `AppIcon.iconset/`, committed `AppIcon.icns` (copied to `Contents/Resources/AppIcon.icns`); mirrored into `shell/src-tauri/icons/` for Tauri. Replace the 1024 master, run [`icon/rebuild.sh`](icon/rebuild.sh), then re-run `package:macos-desktop` |
+| [`icon/`](icon/) | App icon sources: `icon-1024.png`, `AppIcon.iconset/`, committed `AppIcon.icns` (copied to `Contents/Resources/AppIcon.icns`); mirrored into `shell/src-tauri/icons/` for Tauri. Replace the 1024 master, run [`icon/rebuild.sh`](icon/rebuild.sh) (RGBA + [`pack_icns.py`](icon/pack_icns.py) — not bare `iconutil -c icns`, which drops 1024/@2x), then re-run `package:macos-desktop` |
 | [`shell/`](shell/) | Tauri 2 project; release binary becomes `Contents/MacOS/DeepSeekHarness` |
 | [`launcher-browser/DeepSeekHarness`](launcher-browser/DeepSeekHarness) | Optional zsh fallback: `open` the `printUrl` line in the default browser (`--browser-launcher`) |
 | [`bin/dsh`](bin/dsh) | PATH wrapper that prefers embedded Node + pnpm so `dsh plugin` → `spawnSync('pnpm')` hits the in-tree shim |
@@ -82,9 +82,12 @@ PATH="dist-macos-desktop/pnpm/bin:dist-macos-desktop/node/bin" command -v pnpm
 codesign --verify --verbose "dist-macos-desktop/DeepSeek Harness.app"
 file "dist-macos-desktop/DeepSeek Harness.app/Contents/MacOS/DeepSeekHarness"
 file "dist-macos-desktop/DeepSeek Harness.app/Contents/Resources/AppIcon.icns"
+python3 packaging/macos/icon/pack_icns.py verify "dist-macos-desktop/DeepSeek Harness.app/Contents/Resources/AppIcon.icns"
 defaults read "dist-macos-desktop/DeepSeek Harness.app/Contents/Info" CFBundleIconFile
 # Optional local UI smoke (needs free display; credential optional for page chrome):
 open "dist-macos-desktop/DeepSeek Harness.app"
 ```
+
+After replacing the `.app` (or re-signing), Finder/Launchpad usually pick up `AppIcon.icns` immediately; if the **Dock** tile stays blank while Applications shows the icon, quit the app, run `open -R "/Applications/DeepSeek Harness.app"` (or drag the new binary onto Dock once), and only then `killall Dock` as a cache flush.
 
 The closure build also resolves `@deepseek-ai/dsh-web-frontend/dist/index.html` through the deployed install. Full chat still needs a reachable model credential.

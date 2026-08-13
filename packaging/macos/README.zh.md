@@ -22,7 +22,7 @@ Release Cargo profile：`lto`、`strip`、`opt-level = "z"`、`panic = "abort"`�
 |---|---|
 | [`closure-manifest/`](closure-manifest/package.json) | 纯依赖 deploy 根（`dsh-macos-desktop-pkg`），对标 SEA/JSON-RPC 载体的 [`python/sdk-runtime`](../../python/sdk-runtime/package.json) |
 | [`Info.plist`](Info.plist) | App Bundle 元数据（`ai.deepseek.dsh.desktop`）；`CFBundleIconFile` = `AppIcon` |
-| [`icon/`](icon/) | App 图标源：`icon-1024.png`、`AppIcon.iconset/`、已提交的 `AppIcon.icns`（装入 `Contents/Resources/AppIcon.icns`）；并镜像到 `shell/src-tauri/icons/` 供 Tauri。替换时改 1024 主图，运行 [`icon/rebuild.sh`](icon/rebuild.sh)，再跑 `package:macos-desktop` |
+| [`icon/`](icon/) | App 图标源：`icon-1024.png`、`AppIcon.iconset/`、已提交的 `AppIcon.icns`（装入 `Contents/Resources/AppIcon.icns`）；并镜像到 `shell/src-tauri/icons/` 供 Tauri。替换时改 1024 主图，运行 [`icon/rebuild.sh`](icon/rebuild.sh)（RGBA + [`pack_icns.py`](icon/pack_icns.py)；不要单独用 `iconutil -c icns`，它会丢掉 1024/@2x），再跑 `package:macos-desktop` |
 | [`shell/`](shell/) | Tauri 2 工程；release 二进制成为 `Contents/MacOS/DeepSeekHarness` |
 | [`launcher-browser/DeepSeekHarness`](launcher-browser/DeepSeekHarness) | 可选 zsh 兜底：在默认浏览器中 `open` `printUrl` 行（`--browser-launcher`） |
 | [`bin/dsh`](bin/dsh) | PATH wrapper：优先内嵌 Node + pnpm，使 `dsh plugin` → `spawnSync('pnpm')` 命中树内 shim |
@@ -82,9 +82,12 @@ PATH="dist-macos-desktop/pnpm/bin:dist-macos-desktop/node/bin" command -v pnpm
 codesign --verify --verbose "dist-macos-desktop/DeepSeek Harness.app"
 file "dist-macos-desktop/DeepSeek Harness.app/Contents/MacOS/DeepSeekHarness"
 file "dist-macos-desktop/DeepSeek Harness.app/Contents/Resources/AppIcon.icns"
+python3 packaging/macos/icon/pack_icns.py verify "dist-macos-desktop/DeepSeek Harness.app/Contents/Resources/AppIcon.icns"
 defaults read "dist-macos-desktop/DeepSeek Harness.app/Contents/Info" CFBundleIconFile
 # Optional local UI smoke (needs free display; credential optional for page chrome):
 open "dist-macos-desktop/DeepSeek Harness.app"
 ```
+
+替换 `.app`（或重新签名）后，Finder/Launchpad 通常会立刻用上 `AppIcon.icns`；若 **Dock** 仍空白而应用程序里图标正常，先退出应用，再 `open -R "/Applications/DeepSeek Harness.app"`（或把新 app 拖到 Dock 一次），最后才用 `killall Dock` 清缓存。
 
 闭包构建还会通过已部署的安装树解析 `@deepseek-ai/dsh-web-frontend/dist/index.html`。完整对话仍需要可用的模型凭证。

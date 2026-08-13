@@ -382,6 +382,8 @@ class MacosDesktopPackage {
       '-c',
       `test -f ${JSON.stringify(appIcon)} && file ${JSON.stringify(appIcon)} | grep -q 'Mac OS X icon'`,
     ])
+    const packIcns = join(PACKAGING_DIR, 'icon', 'pack_icns.py')
+    await this.run('smoke AppIcon.icns Dock OSTypes', 'python3', [packIcns, 'verify', appIcon])
     await this.run('smoke CFBundleIconFile', '/bin/zsh', [
       '-c',
       `defaults read ${JSON.stringify(join(this.appBundle, 'Contents', 'Info'))} CFBundleIconFile | grep -qx AppIcon`,
