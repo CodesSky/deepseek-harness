@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-14-macos-dock-icon-full-icns-ostypes.md
-2026-08-14-macos-dock-icon-full-icns-ostypes.md: 64e76ea54cbc11067f5c15a4cd9a1f185c81e015
-2026-08-14-macos-dock-icon-full-icns-ostypes.zh.md: b67b2edbadc9569e08bd16e73701739c7d27ba8b
+2026-08-14-macos-dock-icon-full-icns-ostypes.md: fb5008a77d0b5d0ec6ea570967852018dbf8796d
+2026-08-14-macos-dock-icon-full-icns-ostypes.zh.md: d5e8b0f9461eec724ee9c3321114fa9f45c0f3f3

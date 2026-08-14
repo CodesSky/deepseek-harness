@@ -13,7 +13,7 @@ The desktop `.app` showed a correct icon in Finder / Launchpad / Applications bu
 - Build the iconset from `icon-1024.png` as **RGBA** (Tauri `CachedIcon::new_png` requires RGBA; RGB masters get an opaque alpha).
 - Pack `AppIcon.icns` with [`pack_icns.py`](../../../../packaging/macos/icon/pack_icns.py) writing every PNG OSType (`icp4`/`icp5`/`ic07`–`ic14`/`ic10`/`ic11`/`ic12`), and **verify** those tags after pack and in `package-macos-desktop` smoke.
 - Do **not** rely on `iconutil -c icns` alone: on current macOS it silently drops 1024 and @2x members from a complete `.iconset`.
-- Keep `CFBundleIconFile=AppIcon` (no asset catalog / `CFBundleIconName`). Tauri release builds do not override the Dock icon on macOS (`set_window_icon` is a no-op; `app_icon` is only embedded in `dev`).
+- Keep `CFBundleIconFile=AppIcon` (no asset catalog / `CFBundleIconName`). On macOS, `set_window_icon` is a no-op; Tauri embeds `app_icon` and calls `setApplicationIconImage` only under `cfg(dev)`. Production shell builds must enable `tauri/custom-protocol` so that path stays off ([running Dock tile](2026-08-14-macos-dock-running-tile-custom-protocol.md)).
 - List `icons/icon.png` first in `tauri.conf.json` so `find_icon` prefers the 1024 master for the default window icon payload.
 
 ## Alternatives considered

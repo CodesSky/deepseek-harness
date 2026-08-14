@@ -13,7 +13,7 @@ Status: implemented
 - 从 `icon-1024.png` 生成 **RGBA** iconset（Tauri `CachedIcon::new_png` 要求 RGBA；RGB 主图补不透明 alpha）。
 - 用 [`pack_icns.py`](../../../../packaging/macos/icon/pack_icns.py) 打包 `AppIcon.icns`，写入全部 PNG OSType（`icp4`/`icp5`/`ic07`–`ic14`/`ic10`/`ic11`/`ic12`），并在打包后与 `package-macos-desktop` 冒烟中 **校验** 这些标签。
 - **不要**单独依赖 `iconutil -c icns`：当前 macOS 会从完整 `.iconset` 静默丢掉 1024 与 @2x。
-- 保持 `CFBundleIconFile=AppIcon`（不用 asset catalog / `CFBundleIconName`）。Tauri release 不会在 macOS 上覆盖 Dock 图标（`set_window_icon` 为空操作；`app_icon` 仅在 `dev` 嵌入）。
+- 保持 `CFBundleIconFile=AppIcon`（不用 asset catalog / `CFBundleIconName`）。macOS 上 `set_window_icon` 为空操作；仅在 `cfg(dev)` 下 Tauri 会嵌入 `app_icon` 并调用 `setApplicationIconImage`。生产 shell 构建必须启用 `tauri/custom-protocol`，否则会走该路径（[运行中 Dock 磁贴](2026-08-14-macos-dock-running-tile-custom-protocol.md)）。
 - 在 `tauri.conf.json` 中把 `icons/icon.png` 放在首位，使 `find_icon` 优先选用 1024 主图作为默认窗口图标载荷。
 
 ## 考虑过的替代方案

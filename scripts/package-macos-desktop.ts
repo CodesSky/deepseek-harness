@@ -376,6 +376,29 @@ class MacosDesktopPackage {
         '-c',
         `file ${JSON.stringify(macosBin)} | grep -q 'Mach-O 64-bit executable arm64'`,
       ])
+      // Tauri cfg(dev) embeds a raw .icns and setApplicationIconImage → square running Dock tile.
+      await this.run('smoke shell has no embedded ICNS', 'python3', [
+        '-c',
+        [
+          'from pathlib import Path',
+          'import struct, sys',
+          `data = Path(${JSON.stringify(macosBin)}).read_bytes()`,
+          'off = 0',
+          'while True:',
+          '  i = data.find(b"icns", off)',
+          '  if i < 0: break',
+          '  if i + 8 <= len(data):',
+          '    size = struct.unpack(">I", data[i+4:i+8])[0]',
+          '    tag = data[i+8:i+12] if i + 12 <= len(data) else b""',
+          '    if 1024 <= size <= len(data) - i and tag in {',
+          '      b"icp4", b"icp5", b"ic07", b"ic08", b"ic09", b"ic10",',
+          '      b"ic11", b"ic12", b"ic13", b"ic14",',
+          '    }:',
+          '      print(f"embedded icns at {i} size={size} (Tauri cfg(dev) app_icon?)", file=sys.stderr)',
+          '      raise SystemExit(1)',
+          '  off = i + 1',
+        ].join('\n'),
+      ])
     }
     const appIcon = join(this.appBundle, 'Contents', 'Resources', 'AppIcon.icns')
     await this.run('smoke AppIcon.icns present', '/bin/zsh', [

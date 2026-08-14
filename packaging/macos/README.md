@@ -90,4 +90,6 @@ open "dist-macos-desktop/DeepSeek Harness.app"
 
 After replacing the `.app` (or re-signing), Finder/Launchpad usually pick up `AppIcon.icns` immediately; if the **Dock** tile stays blank while Applications shows the icon, quit the app, run `open -R "/Applications/DeepSeek Harness.app"` (or drag the new binary onto Dock once), and only then `killall Dock` as a cache flush.
 
+If the Dock icon is **rounded when quit** but **square while running**, the shell was built without Tauri `custom-protocol` (`cfg(dev)` → `setApplicationIconImage`). Rebuild the shell with the feature enabled; see [shell/README.md](shell/README.md) and the [running-tile note](../../.agents/notes/implemented/bug-fix/2026-08-14-macos-dock-running-tile-custom-protocol.md).
+
 The closure build also resolves `@deepseek-ai/dsh-web-frontend/dist/index.html` through the deployed install. Full chat still needs a reachable model credential.

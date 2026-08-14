@@ -90,4 +90,6 @@ open "dist-macos-desktop/DeepSeek Harness.app"
 
 替换 `.app`（或重新签名）后，Finder/Launchpad 通常会立刻用上 `AppIcon.icns`；若 **Dock** 仍空白而应用程序里图标正常，先退出应用，再 `open -R "/Applications/DeepSeek Harness.app"`（或把新 app 拖到 Dock 一次），最后才用 `killall Dock` 清缓存。
 
+若 Dock 图标**退出后有圆角、运行中变直角**，说明 shell 构建未启用 Tauri `custom-protocol`（`cfg(dev)` → `setApplicationIconImage`）。用已启用该 feature 的配置重建 shell；见 [shell/README.md](shell/README.md) 与 [运行中磁贴说明](../../.agents/notes/implemented/bug-fix/2026-08-14-macos-dock-running-tile-custom-protocol.md)。
+
 闭包构建还会通过已部署的安装树解析 `@deepseek-ai/dsh-web-frontend/dist/index.html`。完整对话仍需要可用的模型凭证。
