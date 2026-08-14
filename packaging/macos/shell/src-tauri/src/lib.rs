@@ -3,6 +3,10 @@
 //! Owns the native window and the lifecycle of the embedded `dsh web` child.
 //! The product UI remains `dsh-web-frontend` served from the Resources closure;
 //! this crate does not embed Chromium or a second Node tree.
+//!
+//! HTTP(S) navigations and `target="_blank"` requests that are not the embedded
+//! web UI origin open in the system browser; only `http`/`https` are opened
+//! ([Agent Note](../../../../../.agents/notes/implemented/bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)).
 
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -12,7 +16,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Manager, RunEvent};
+use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, RunEvent, WebviewUrl};
 use url::Url;
 
 /// Readiness line prefix emitted by `@deepseek-ai/dsh-web-app` when `printUrl` is on.
@@ -20,10 +25,23 @@ const READY_PREFIX: &str = "dsh web: ";
 /// How long to wait for the readiness line before surfacing an error in-window.
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// How the shell routes a candidate URL relative to the embedded web UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LinkDisposition {
+  /// Keep the load inside the main WKWebView (shell assets or web UI origin).
+  AllowInWebview,
+  /// Open with the system default handler and block WebView navigation / new windows.
+  OpenInSystemBrowser,
+  /// Block without opening (non-http(s) schemes outside the shell asset protocols).
+  Deny,
+}
+
 /// Shared handle so exit teardown can stop the child after setup returns.
 struct ServerState {
   child: Mutex<Option<Child>>,
   stopped: AtomicBool,
+  /// Scheme/host/port of the embedded `dsh web` once the readiness URL is known.
+  web_ui_origin: Mutex<Option<Url>>,
 }
 
 impl ServerState {
@@ -31,6 +49,7 @@ impl ServerState {
     Self {
       child: Mutex::new(None),
       stopped: AtomicBool::new(false),
+      web_ui_origin: Mutex::new(None),
     }
   }
 
@@ -60,6 +79,80 @@ impl ServerState {
       let _ = child.wait();
     }
   }
+
+  fn set_web_ui_origin(&self, url: &Url) -> Result<(), String> {
+    let Ok(mut guard) = self.web_ui_origin.lock() else {
+      return Err("server state lock poisoned".to_string());
+    };
+    *guard = Some(url.clone());
+    Ok(())
+  }
+
+  fn web_ui_origin(&self) -> Option<Url> {
+    self
+      .web_ui_origin
+      .lock()
+      .ok()
+      .and_then(|guard| guard.clone())
+  }
+}
+
+/// True when `candidate` shares scheme, host, and port with `origin`.
+fn same_origin(candidate: &Url, origin: &Url) -> bool {
+  candidate.scheme() == origin.scheme()
+    && candidate.host() == origin.host()
+    && candidate.port_or_known_default() == origin.port_or_known_default()
+}
+
+/// Classify a URL for WebView navigation or a new-window request.
+///
+/// Only `http`/`https` may open in the system browser. The embedded web UI origin
+/// and Tauri shell asset protocols stay in the WebView. Matches the markdown
+/// sanitize allowlist (`http`/`https` only) for outbound opens.
+fn classify_link(url: &Url, web_ui_origin: Option<&Url>) -> LinkDisposition {
+  match url.scheme() {
+    "http" | "https" => {
+      if web_ui_origin.is_some_and(|origin| same_origin(url, origin)) {
+        LinkDisposition::AllowInWebview
+      } else {
+        LinkDisposition::OpenInSystemBrowser
+      }
+    }
+    // Loading page and other Tauri asset navigations before/around `dsh web`.
+    "tauri" | "asset" | "about" => LinkDisposition::AllowInWebview,
+    _ => LinkDisposition::Deny,
+  }
+}
+
+fn open_http_in_system_browser(url: &Url) {
+  if url.scheme() != "http" && url.scheme() != "https" {
+    return;
+  }
+  if let Err(err) = tauri_plugin_opener::open_url(url.as_str(), None::<&str>) {
+    eprintln!("DeepSeekHarness: failed to open URL in system browser: {err}");
+  }
+}
+
+fn apply_navigation_disposition(url: &Url, disposition: LinkDisposition) -> bool {
+  match disposition {
+    LinkDisposition::AllowInWebview => true,
+    LinkDisposition::OpenInSystemBrowser => {
+      open_http_in_system_browser(url);
+      false
+    }
+    LinkDisposition::Deny => false,
+  }
+}
+
+fn apply_new_window_disposition(url: &Url) -> NewWindowResponse<tauri::Wry> {
+  // Markdown uses target="_blank" for every http(s) href. Never spawn a second
+  // WKWebView: open http(s) in the system browser (including the web UI origin)
+  // and deny every other scheme without opening. Same-origin SPA loads still use
+  // on_navigation → AllowInWebview.
+  if url.scheme() == "http" || url.scheme() == "https" {
+    open_http_in_system_browser(url);
+  }
+  NewWindowResponse::Deny
 }
 
 /// Resolve `Contents/Resources` for the App Bundle, or `DSH_DESKTOP_RESOURCES` for local smoke.
@@ -279,11 +372,12 @@ fn show_error(app: &AppHandle, title: &str, detail: &str) {
   }
 }
 
-fn navigate_main(app: &AppHandle, url: &str) -> Result<(), String> {
+fn navigate_main(app: &AppHandle, state: &ServerState, url: &str) -> Result<(), String> {
   let window = app
     .get_webview_window("main")
     .ok_or_else(|| "main window missing".to_string())?;
   let parsed = Url::parse(url).map_err(|e| format!("invalid web URL {url:?}: {e}"))?;
+  state.set_web_ui_origin(&parsed)?;
   window
     .navigate(parsed)
     .map_err(|e| format!("navigate to {url} failed: {e}"))
@@ -321,20 +415,38 @@ fn boot_server(app: AppHandle, state: Arc<ServerState>) {
       }
     };
 
-    if let Err(err) = navigate_main(&app, &url) {
+    if let Err(err) = navigate_main(&app, &state, &url) {
       state.stop();
       show_error(&app, "Could not open Web UI", &err);
     }
   });
 }
 
+fn build_main_window(app: &tauri::App, state: Arc<ServerState>) -> tauri::Result<()> {
+  let state_nav = Arc::clone(&state);
+  WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+    .title("DeepSeek Harness")
+    .inner_size(1280.0, 840.0)
+    .resizable(true)
+    .fullscreen(false)
+    .on_navigation(move |url| {
+      let origin = state_nav.web_ui_origin();
+      apply_navigation_disposition(url, classify_link(url, origin.as_ref()))
+    })
+    .on_new_window(|url, _features| apply_new_window_disposition(&url))
+    .build()?;
+  Ok(())
+}
+
 /// Run the desktop shell event loop.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   let app = tauri::Builder::default()
+    .plugin(tauri_plugin_opener::init())
     .setup(|app| {
       let state = Arc::new(ServerState::empty());
       app.manage(Arc::clone(&state));
+      build_main_window(app, Arc::clone(&state))?;
       boot_server(app.handle().clone(), state);
       Ok(())
     })
@@ -348,4 +460,80 @@ pub fn run() {
       }
     }
   });
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn url(s: &str) -> Url {
+    Url::parse(s).expect("test URL")
+  }
+
+  #[test]
+  fn web_ui_origin_stays_in_webview() {
+    let origin = url("http://127.0.0.1:54321/");
+    assert_eq!(
+      classify_link(&url("http://127.0.0.1:54321/chat"), Some(&origin)),
+      LinkDisposition::AllowInWebview
+    );
+  }
+
+  #[test]
+  fn other_localhost_opens_system_browser() {
+    let origin = url("http://127.0.0.1:54321/");
+    assert_eq!(
+      classify_link(&url("http://localhost:3000/docs"), Some(&origin)),
+      LinkDisposition::OpenInSystemBrowser
+    );
+    assert_eq!(
+      classify_link(&url("http://127.0.0.1:9999/"), Some(&origin)),
+      LinkDisposition::OpenInSystemBrowser
+    );
+  }
+
+  #[test]
+  fn public_https_opens_system_browser() {
+    let origin = url("http://127.0.0.1:54321/");
+    assert_eq!(
+      classify_link(&url("https://example.com/a"), Some(&origin)),
+      LinkDisposition::OpenInSystemBrowser
+    );
+  }
+
+  #[test]
+  fn http_before_origin_known_opens_system_browser() {
+    assert_eq!(
+      classify_link(&url("http://127.0.0.1:1/"), None),
+      LinkDisposition::OpenInSystemBrowser
+    );
+  }
+
+  #[test]
+  fn shell_asset_protocols_stay_in_webview() {
+    assert_eq!(
+      classify_link(&url("tauri://localhost/index.html"), None),
+      LinkDisposition::AllowInWebview
+    );
+    assert_eq!(
+      classify_link(&url("about:blank"), None),
+      LinkDisposition::AllowInWebview
+    );
+  }
+
+  #[test]
+  fn non_http_schemes_are_denied_without_open() {
+    assert_eq!(
+      classify_link(&url("javascript:alert(1)"), None),
+      LinkDisposition::Deny
+    );
+    assert_eq!(
+      classify_link(&url("file:///etc/passwd"), None),
+      LinkDisposition::Deny
+    );
+    assert_eq!(
+      classify_link(&url("mailto:user@example.com"), None),
+      LinkDisposition::Deny
+    );
+  }
 }

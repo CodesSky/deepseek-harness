@@ -24,6 +24,7 @@ tauri-build = { version = "2", features = [] }
 # paints the Dock tile from a square PNG/ICNS and skips the system squircle mask.
 # ([Agent Note](../../../../.agents/notes/implemented/bug-fix/2026-08-14-macos-dock-running-tile-custom-protocol.md))
 tauri = { version = "2", features = ["custom-protocol"] }
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 url = "2"

@@ -58,7 +58,7 @@ CI: [`.github/workflows/macos-desktop.yml`](../../.github/workflows/macos-deskto
 
 1. Open the DMG and drag `DeepSeek Harness.app` into Applications (or run the `.app` from the build tree).
 2. On first launch, if macOS blocks an unidentified developer: **Finder → right-click the app → Open → Open**. Ad-hoc signing is intentional for this channel; there is no Developer ID / notarization.
-3. The Tauri shell starts `dsh web --host 127.0.0.1 --port 0` (OS-assigned free port), waits for the `dsh web: http://…` readiness line, loads that URL in the app window, and stops the server when the app exits or the main window closes.
+3. The Tauri shell starts `dsh web --host 127.0.0.1 --port 0` (OS-assigned free port), waits for the `dsh web: http://…` readiness line, loads that URL in the app window, and stops the server when the app exits or the main window closes. Conversation `http(s)://…` links (including other localhost ports) open in the system browser; the embedded web UI origin stays in the WebView ([note](../../.agents/notes/implemented/bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)).
 4. Startup failures (missing Resources, server exit, timeout) show inside the window. `EADDRINUSE` is unlikely with `--port 0`; if it still appears in logs, the window surfaces the message.
 
 ## CLI / plugins from the install

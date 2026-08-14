@@ -14,6 +14,7 @@ Ship a **Tauri 2 (macOS arm64) shell** that uses **system WKWebView** and reuses
 
 - `Contents/MacOS/DeepSeekHarness` is the Tauri/Rust release binary from [`packaging/macos/shell/`](../../../../packaging/macos/shell/).
 - On launch it starts embedded `dsh web --host 127.0.0.1 --port 0` (OS-assigned free port), parses the `dsh web: http://…` readiness line, and navigates the window to that URL.
+- Outbound conversation `http(s)://…` links open in the system browser; the embedded web UI origin stays in the WebView ([HTTP(S) links note](../bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)).
 - Exit / main-window close kills the child process so port 3080-class leftovers do not linger.
 - Startup errors render in the shell’s loading page (not only stderr).
 - `Resources/{node,dsh,pnpm,bin}` stay the M0–M3 closure layout; the shell does **not** vendor a second `node_modules`.

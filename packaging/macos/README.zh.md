@@ -58,7 +58,7 @@ CI：[`.github/workflows/macos-desktop.yml`](../../.github/workflows/macos-deskt
 
 1. 打开 DMG，将 `DeepSeek Harness.app` 拖入「应用程序」（也可直接运行构建树中的 `.app`）。
 2. 首次启动若被识别为未认证开发者拦截：在 **Finder 中右键应用 → 打开 → 打开**。本渠道有意使用 ad-hoc 签名，不做 Developer ID / notarization。
-3. Tauri 壳启动 `dsh web --host 127.0.0.1 --port 0`（由操作系统分配空闲端口），等待 `dsh web: http://…` 就绪行后在应用窗口加载该 URL；退出应用或关闭主窗口时停止服务。
+3. Tauri 壳启动 `dsh web --host 127.0.0.1 --port 0`（由操作系统分配空闲端口），等待 `dsh web: http://…` 就绪行后在应用窗口加载该 URL；退出应用或关闭主窗口时停止服务。对话中的 `http(s)://…` 链接（含其他 localhost 端口）在系统浏览器中打开；嵌入式 web UI origin 留在 WebView（[说明](../../.agents/notes/implemented/bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)）。
 4. 启动失败（缺少 Resources、服务退出、超时）在窗口内提示。使用 `--port 0` 时 `EADDRINUSE` 很少见；若日志仍出现，窗口会展示该信息。
 
 ## 从安装树使用 CLI / 插件

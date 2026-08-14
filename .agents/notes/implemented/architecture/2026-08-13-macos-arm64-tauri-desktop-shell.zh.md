@@ -14,6 +14,7 @@ Status: implemented
 
 - `Contents/MacOS/DeepSeekHarness` 为 [`packaging/macos/shell/`](../../../../packaging/macos/shell/) 产出的 Tauri/Rust release 二进制。
 - 启动时拉起内嵌 `dsh web --host 127.0.0.1 --port 0`（由操作系统分配空闲端口），解析 `dsh web: http://…` 就绪行，并导航窗口到该 URL。
+- 对话中的外向 `http(s)://…` 链接在系统浏览器中打开；嵌入式 web UI origin 留在 WebView（[HTTP(S) 链接说明](../bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)）。
 - 退出 / 关闭主窗口时杀死子进程，避免端口残留。
 - 启动错误在壳的加载页内展示（不只写 stderr）。
 - `Resources/{node,dsh,pnpm,bin}` 保持 M0–M3 闭包布局；壳**不**再附带第二份 `node_modules`。
