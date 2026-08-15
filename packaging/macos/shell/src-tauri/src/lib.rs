@@ -17,8 +17,24 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl};
+use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow};
 use url::Url;
+
+#[cfg(target_os = "macos")]
+use tauri::{LogicalPosition, TitleBarStyle};
+
+/// Injected on every top-level navigation, including `http://127.0.0.1` after `navigate()`.
+const DESKTOP_INIT_SCRIPT: &str = include_str!("../../ui/desktop-init.js");
+
+/// Left edge of the macOS traffic-light cluster. Platform chrome constant, not a Config tunable.
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_X: f64 = 16.0;
+
+/// Logical Y that paints the traffic-light mid-line on the web chrome mid-line (center 26).
+/// Tuned +8 above the naive top-edge formula (`20` for 12px lights) because macOS overlay
+/// draw sits higher than Tauri `LogicalPosition` top-edge math against CSS.
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_Y: f64 = 28.0;
 
 /// Readiness line prefix emitted by `@deepseek-ai/dsh-web-app` when `printUrl` is on.
 const READY_PREFIX: &str = "dsh web: ";
@@ -422,19 +438,54 @@ fn boot_server(app: AppHandle, state: Arc<ServerState>) {
   });
 }
 
+/// JS that sets or clears `data-dsh-fullscreen` on the current document.
+fn sync_fullscreen_script(fullscreen: bool) -> &'static str {
+  if fullscreen {
+    "document.documentElement.dataset.dshFullscreen='true'"
+  } else {
+    "delete document.documentElement.dataset.dshFullscreen"
+  }
+}
+
+/// Push `data-dsh-fullscreen` so overlay insets and drag regions collapse in native fullscreen.
+fn sync_fullscreen_dataset(window: &WebviewWindow) {
+  let Ok(fullscreen) = window.is_fullscreen() else {
+    return;
+  };
+  let _ = window.eval(sync_fullscreen_script(fullscreen));
+}
+
 fn build_main_window(app: &tauri::App, state: Arc<ServerState>) -> tauri::Result<()> {
   let state_nav = Arc::clone(&state);
-  WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+  let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
     .title("DeepSeek Harness")
     .inner_size(1280.0, 840.0)
     .resizable(true)
     .fullscreen(false)
+    .accept_first_mouse(true)
+    .initialization_script(DESKTOP_INIT_SCRIPT)
     .on_navigation(move |url| {
       let origin = state_nav.web_ui_origin();
       apply_navigation_disposition(url, classify_link(url, origin.as_ref()))
     })
-    .on_new_window(|url, _features| apply_new_window_disposition(&url))
-    .build()?;
+    .on_new_window(|url, _features| apply_new_window_disposition(&url));
+
+  #[cfg(target_os = "macos")]
+  {
+    builder = builder
+      .decorations(true)
+      .hidden_title(true)
+      .title_bar_style(TitleBarStyle::Overlay)
+      .traffic_light_position(LogicalPosition::new(TRAFFIC_LIGHT_X, TRAFFIC_LIGHT_Y));
+  }
+
+  let window = builder.build()?;
+  let win = window.clone();
+  window.on_window_event(move |event| {
+    if matches!(event, tauri::WindowEvent::Resized(_)) {
+      sync_fullscreen_dataset(&win);
+    }
+  });
   Ok(())
 }
 
@@ -519,6 +570,34 @@ mod tests {
       classify_link(&url("about:blank"), None),
       LinkDisposition::AllowInWebview
     );
+  }
+
+  #[test]
+  fn desktop_init_script_marks_only_loopback_and_shell_origins() {
+    assert!(DESKTOP_INIT_SCRIPT.contains("dataset.dshDesktop = 'macos'"));
+    assert!(DESKTOP_INIT_SCRIPT.contains("host !== '127.0.0.1'"));
+    assert!(DESKTOP_INIT_SCRIPT.contains("data-tauri-drag-region"));
+    assert!(DESKTOP_INIT_SCRIPT.contains("plugin:window|is_fullscreen"));
+    assert!(!DESKTOP_INIT_SCRIPT.contains("canOpenPath"));
+  }
+
+  #[test]
+  fn overlay_chrome_constants_are_platform_insets() {
+    #[cfg(target_os = "macos")]
+    {
+      assert_eq!(TRAFFIC_LIGHT_X, 16.0);
+      assert_eq!(TRAFFIC_LIGHT_Y, 28.0);
+    }
+    let capabilities = include_str!("../capabilities/default.json");
+    assert!(capabilities.contains("http://127.0.0.1:*"));
+    assert!(capabilities.contains("core:window:allow-start-dragging"));
+    assert!(capabilities.contains("core:window:allow-is-fullscreen"));
+  }
+
+  #[test]
+  fn fullscreen_dataset_script_toggles_the_html_flag() {
+    assert!(sync_fullscreen_script(true).contains("dshFullscreen='true'"));
+    assert!(sync_fullscreen_script(false).contains("delete document.documentElement.dataset.dshFullscreen"));
   }
 
   #[test]

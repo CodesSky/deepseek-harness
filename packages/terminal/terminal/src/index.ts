@@ -12,6 +12,7 @@ import type {
   TerminalBackendSession,
   TerminalReadRequest,
   TerminalReadResult,
+  TerminalResizeRequest,
   TerminalSendOperation,
   TerminalSendRequest,
   TerminalSessionIdValue,
@@ -20,14 +21,17 @@ import type {
   TerminalSignalResult,
   TerminalSpawnRequest,
   TerminalSpawnResult,
+  TerminalAttachListener,
 } from './types.ts'
 
 export type {
+  TerminalAttachListener,
   TerminalBackend,
   TerminalBackendSession,
   TerminalBackendSpawnSpec,
   TerminalReadRequest,
   TerminalReadResult,
+  TerminalResizeRequest,
   TerminalSendOperation,
   TerminalSendRead,
   TerminalSendRequest,
@@ -251,6 +255,45 @@ export class TerminalSessionService extends Service {
       () => { record.active = undefined },
     )
     return operation
+  }
+
+  /**
+   * Subscribe to raw PTY bytes without taking the exclusive send reservation.
+   * Raw chunks stay process-local and are never written to the session log.
+   * @param owner - exact session owner.
+   * @param id - target PTY identity.
+   * @param listener - receives every subsequent output chunk until disposed.
+   * @returns disposer that removes exactly this listener.
+   */
+  attach(owner: Agent, id: TerminalSessionId, listener: TerminalAttachListener): () => void {
+    const record = this.expectOwned(owner, id)
+    if (record.closing !== undefined) throw new Error(`PTY session ${id} is closing`)
+    return record.session.attach(listener)
+  }
+
+  /**
+   * Write PTY input without a readiness wait.
+   * Allowed while a model send is active; callers accept interference with that send.
+   * @param owner - exact session owner.
+   * @param id - target PTY identity.
+   * @param data - UTF-8 text or raw bytes.
+   */
+  async writeRaw(owner: Agent, id: TerminalSessionId, data: string | Uint8Array): Promise<void> {
+    const record = this.expectOwned(owner, id)
+    if (record.closing !== undefined) throw new Error(`PTY session ${id} is closing`)
+    await record.session.writeRaw(data)
+  }
+
+  /**
+   * Resize one owned PTY's geometry.
+   * @param owner - exact session owner.
+   * @param id - target PTY identity.
+   * @param size - positive cols and rows.
+   */
+  async resize(owner: Agent, id: TerminalSessionId, size: TerminalResizeRequest): Promise<void> {
+    const record = this.expectOwned(owner, id)
+    if (record.closing !== undefined) throw new Error(`PTY session ${id} is closing`)
+    await record.session.resize(size)
   }
 
   /**

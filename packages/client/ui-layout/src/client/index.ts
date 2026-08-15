@@ -1,7 +1,7 @@
 /**
  * Layout plugin, browser half: one register() call contributes AppFrame into
  * the runtime's built-in 'root' slot and, in the same breath, declares the
- * four child slots (declaration = exclusive render authority), seats the
+ * five child slots (declaration = exclusive render authority), seats the
  * layout store (panel geometry), and wires the panel-action service face.
  * ctx.layout is the cross-plugin panel-action contract; navigation state lives
  * with the runtime sessions service. A second effect seats the theme
@@ -33,7 +33,7 @@ declare module '@deepseek-ai/cordis' {
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     // The 'root' entry itself is the runtime's built-in slot (declared
-    // there); these four are the frame's children, declared by the same
+    // there); these five are the frame's children, declared by the same
     // register() call that contributes AppFrame. Session owners never pass
     // sessionId: the framework injects it as a standard prop.
     /**
@@ -44,7 +44,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * sidebar, register into one of those inner seats instead.
      *
      * The occupant receives the frame's live column state (collapsed, width)
-     * and is expected to render the compact control rail while collapsed.
+     * and is expected to hide the column while collapsed (fixed chrome escapes).
      */
     'sidebar': { kind: 'single'; scope: 'root'; owner: SidebarOwnerProps }
     /**
@@ -71,6 +71,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * Bottom dock under the center and details columns (not the sidebar).
+     * Occupants sit in the frame's second grid row so the sidebar stays
+     * full-height; empty registrants collapse the row. Additive list seat —
+     * a fresh `id` stacks beside shipped entries instead of replacing them.
+     */
+    'shell.dock': { kind: 'list'; scope: 'root' }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -92,9 +99,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Sidebar owner share: live column state from the frame's concession solve. */
 export interface SidebarOwnerProps {
-  /** True when the sidebar is closed (the column renders the compact control rail). */
+  /** True when the sidebar is closed (column width is SIDEBAR_COLLAPSED / zero). */
   collapsed: boolean
-  /** Rendered column width in px (SIDEBAR_COLLAPSED when collapsed). */
+  /** Rendered column width in px (zero when collapsed). */
   width: number
 }
 
@@ -109,7 +116,7 @@ export const inject = ['slots', 'theme']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
- * into 'root' with the four child-slot declarations, the layout store seat,
+ * into 'root' with the five child-slot declarations, the layout store seat,
  * and the inject hook that hands the store's bound actions to the service.
  * @param ctx - client root context.
  */
@@ -123,6 +130,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        'shell.dock': { kind: 'list', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

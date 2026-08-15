@@ -37,7 +37,8 @@ class RecordingSandbox extends SandboxProvider {
 
 function config(): ResolvedConfig {
   return {
-    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], rows: 24, cols: 80,
+    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], profile: 'controlled',
+    rows: 24, cols: 80,
     scrollbackLines: 10, scrollbackMaxBytes: 100, maxReadBytes: 50,
     pollIntervalMs: 10, exactProbeAfterMs: 20, idleSilenceMs: 50, handoffGraceMs: 10, timeoutMs: 100,
     disposeGraceMs: 10,
@@ -65,6 +66,7 @@ function terminalHandle(): SubprocessTerminalHandle {
     output,
     done: Promise.resolve({ exitCode: 0, signal: null }),
     write: async () => {},
+    resize: async () => {},
     inspectForeground: async () => ({ processGroupId: 123, inputWaiting: true }),
     signalForeground: async () => 123,
     terminate: async () => { output.end() },
@@ -320,6 +322,7 @@ describe('BashTerminalBackend startup rollback', () => {
       output,
       done: outcome.promise,
       write: async () => {},
+      resize: async () => {},
       inspectForeground: async () => ({ processGroupId: 123, inputWaiting: true }),
       signalForeground: async () => 123,
       async terminate() {

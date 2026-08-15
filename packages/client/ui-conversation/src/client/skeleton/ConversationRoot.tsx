@@ -185,6 +185,9 @@ export function ConversationRoot({
 
   return (
     <div className={css.root} data-phase={phase}>
+      {phase !== 'active' && (
+        <div className={css.desktopDragBand} data-dsh-drag-chrome="" aria-hidden="true" />
+      )}
       {renderSlot('conversation.session.header', {})}
       <div className={css.scrollBody} data-conversation-scroll="">
         {renderSlot('conversation.session', {})}

@@ -3,13 +3,14 @@
 // vertical collision flips the bubble to the other side, but there is no
 // arrow) — visuals and behavior get a proper pass later.
 // The anchor is the child element itself (cloneElement, no wrapper node), so
-// attaching a tooltip never changes the anchor's layout context. The bubble is
-// position:fixed and coordinates come from the anchor's rect at show time, so
-// it escapes ancestor overflow clipping (the sidebar rail clips its column)
-// without a portal.
+// attaching a tooltip never changes the anchor's layout context. The bubble
+// portals to document.body and is position:fixed from the anchor rect, so a
+// flex header or an overflow/transform ancestor cannot trap it as an in-flow
+// sibling (WKWebView treats overflow:hidden as a containing block for fixed).
 
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEventHandler, MouseEventHandler, MutableRefObject, ReactElement, Ref } from 'react'
+import { createPortal } from 'react-dom'
 import css from './Tooltip.module.css'
 
 /** Bubble placement relative to the anchor. */
@@ -36,7 +37,7 @@ type TooltipLabel = string | (() => string)
  * @param props.maxWidth - bubble width cap in pixels, for labels long enough that the default
  * half-viewport cap would render a slab wider than the surface the anchor sits on.
  * @param props.children - a single anchor element; its own ref (callback or object) is forwarded alongside the tooltip's.
- * @returns the cloned anchor plus a fixed-position bubble while hovered/focused.
+ * @returns the cloned anchor plus a body-portaled fixed-position bubble while hovered/focused.
  */
 export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, maxWidth, children }: { label: TooltipLabel; side?: TooltipSide; delayMs?: number; disabled?: boolean; maxWidth?: number; children: ReactElement<AnchorProps> }) {
   const anchor = useRef<HTMLElement | null>(null)
@@ -152,7 +153,7 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
         onFocus: (e) => { children.props.onFocus?.(e); triggers.current.focus = true; cancelShow(); show() },
         onBlur: (e) => { children.props.onBlur?.(e); triggers.current.focus = false; hide() },
       })}
-      {pos !== null && (
+      {pos !== null && createPortal(
         <span
           ref={bubble}
           className={css.bubble}
@@ -161,7 +162,8 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
           role="tooltip"
         >
           {resolvedLabel}
-        </span>
+        </span>,
+        document.body,
       )}
     </>
   )

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md
-2026-08-14-macos-desktop-http-links-system-browser.md: dfdc68408a65fdba65d026113b602d8a2b576162
-2026-08-14-macos-desktop-http-links-system-browser.zh.md: 79b51cd0b96b3f3c28a87e510addaf8d909ffc1c
+2026-08-14-macos-desktop-http-links-system-browser.md: 8fd93ee58cf3551e9d90c1917c8f17c7e5cab413
+2026-08-14-macos-desktop-http-links-system-browser.zh.md: 71502fee9cf90176a6af9cff7870b7ef8df977ae

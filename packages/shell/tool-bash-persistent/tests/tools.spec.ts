@@ -206,6 +206,14 @@ class StubPtySession implements TerminalBackendSession {
     return this.operation(Promise.resolve(this.result(output, 'stdin_read')))
   }
 
+  attach(_listener: (chunk: Uint8Array) => void): () => void {
+    return () => {}
+  }
+
+  async writeRaw(_data: string | Uint8Array): Promise<void> {}
+
+  async resize(_size: { cols: number; rows: number }): Promise<void> {}
+
   read(request: TerminalReadRequest) {
     if (this.mode === 'empty-read') {
       return { text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }

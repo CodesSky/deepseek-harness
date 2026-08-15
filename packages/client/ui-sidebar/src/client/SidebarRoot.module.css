@@ -2,9 +2,9 @@
    fill + 1px right border painted by the layout column. Collapse is a
    slide + crossfade, not a morph: the content holds its frozen expanded
    layout (inline width set by the component) and fades in place (.fading)
-   while the sliding column (AppFrame grid tracks) clips it; the rail layout
-   (.collapsed) only applies after the fade settles, so nothing reflows
-   mid-slide. */
+   while the sliding column (AppFrame grid tracks) clips it; settled
+   collapsed uses zero column width with fixed top-bar chrome (toggle +
+   New Session) so no rail or right-edge seam remains. */
 
 .root {
   --dsh-sidebar-inline-padding: 12px;
@@ -22,11 +22,10 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-/* Rail geometry (figma rail spec): 36x36 control boxes centered in the 56px
-   rail (10px side padding), 12px vertical rhythm, 18px from the rail top to
-   the whale's box (24px to the 24-wide whale glyph itself). */
+/* Settled collapsed: column is zero-width; paint nothing in-flow. */
 .root.collapsed {
-  padding: 18px 10px 6px;
+  padding: 0;
+  background: transparent;
 }
 
 /* Scrollbars in the column are a pointer affordance: the shell adds this
@@ -43,10 +42,16 @@
 }
 
 /* Collapse phase 1: the whole frozen-width content fades out in place over
-   150ms; at settle the children unmount/snap to the rail layout. */
+   150ms; at settle the wide capsule unmounts and fixed chrome takes over. */
 .fading > * {
   opacity: 0;
   transition: opacity 150ms var(--ds-ease-in-out);
+}
+
+/* Fixed descendants still inherit ancestor opacity — keep logoRow (and its
+   pinned toggle) visible through the wide-content fade-out on every channel. */
+.fading > .logoRow {
+  opacity: 1;
 }
 
 /* Wide-only content fades back in on expand remount. */
@@ -58,70 +63,102 @@
   from { opacity: 0; }
 }
 
-/* At the 150ms rail settle, the four upper controls enter from the former
-   rail right edge over the remaining 150ms of the AppFrame track transition.
-   The bottom-pinned settings seat shares their opacity timeline but stays
-   horizontally fixed. Only a live collapse gets .railIn; a cold collapsed
+/* At the 150ms settle, fixed chrome fades in over the remaining AppFrame
+   track transition. Only a live collapse gets .chromeIn; a cold collapsed
    render stays static. */
-.railIn .iconButton,
-.railIn .newSession,
-.railIn .regionArea {
-  animation: rail-in 150ms var(--ds-ease-in-out) backwards;
+.chromeIn .toggle,
+.chromeIn .collapsedNewSession {
+  animation: chrome-in 150ms var(--ds-ease-in-out) backwards;
 }
 
-.railIn .footArea {
-  animation: rail-fade-in 150ms var(--ds-ease-in-out) backwards;
-}
-
-@keyframes rail-in {
-  from {
-    opacity: 0;
-    transform: translateX(49px);
-  }
-}
-
-@keyframes rail-fade-in {
+@keyframes chrome-in {
   from { opacity: 0; }
 }
 
-/* Logo row (figma pad (4,8,4,8)): expanded keeps the panel toggle at the
-   right edge; the rail gives every control the same base left anchor before
-   the shared entry translation is applied. */
+/* Logo row: panel toggle (+ collapsed New Session). Height 40 + root 6px
+   pad centers the 28px toggle on the same mid-line as macOS traffic lights
+   (TRAFFIC_LIGHT_Y=28 → painted center 26) and the top-right chrome cluster.
+   Browser expanded: toggle stays in-flow at the right edge. Collapsed and
+   macOS overlay pin chrome beside the lights / top-left (below). */
 .logoRow {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  height: 60px;
-  padding: 8px 0 8px 4px;
+  height: 40px;
+  padding: 0 0 0 4px;
   margin-bottom: 8px;
   box-sizing: border-box;
-  overflow: hidden;
+  /* visible: macOS pins .toggle fixed beside the traffic lights; hidden would
+     clip that escape even while the expanded column is wide enough. */
+  overflow: visible;
 }
 
 .collapsed .logoRow {
-  height: 36px;
+  height: 0;
+  margin: 0;
   padding: 0;
-  margin-bottom: 12px;
-  justify-content: flex-start;
+  overflow: visible;
 }
 
-/* Brand group (figma I133:7632): the full wordmark rides the text ink
-   (figma flows: the main-screen instance is black; blue is brand
-   emphasis only). A button only in behavior (New Session shortcut): the
-   pointer cursor is the sole affordance — no hover chrome on the mark. */
-.brand {
-  flex: 1;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+/* macOS overlay title bar: pin the panel toggle immediately right of the
+   traffic-light cluster (TRAFFIC_LIGHT_X=16 + ~52px lights → left 80; top 12
+   centers the 28px control on mid-line 26). logoRow stays as a deep-drag
+   spacer under the lights while expanded. Platform chrome constants, not
+   Config tunables. The shell injects html[data-dsh-desktop=macos]; browser
+   channels never do. Fullscreen drops the pin and restores in-flow layout. */
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .toggle {
+  position: fixed;
+  top: 12px;
+  left: 80px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .toggle .panelIcon {
+  width: 16px;
+  height: 16px;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .chromeIn .toggle {
+  animation: none;
+}
+
+/* Collapsed (and mid-fade on browser): pin toggle so a zero-width / sliding
+   column does not clip it. macOS left:80 above wins via equal specificity on
+   .toggle; browser uses the top-left inset. */
+.fading .toggle,
+.collapsed .toggle {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+}
+
+/* Collapsed New Session: immediately right of the toggle (28 + 8 gap). */
+.collapsed .collapsedNewSession {
+  position: fixed;
+  top: 12px;
+  left: 48px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .collapsed .toggle {
+  left: 80px;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .collapsed .collapsedNewSession {
+  left: 116px;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .fading .toggle {
+  left: 80px;
 }
 
 .iconButton {
@@ -144,33 +181,11 @@
 }
 
 .collapsed .iconButton {
-  width: 36px;
-  height: 36px;
-}
-
-/* Rail logo swap: collapsed, the toggle rests as the whale mark (brand ink,
-   no hover circle) and hovering reveals the panel icon — the expand
-   affordance (figma sidebar-hover flow). Expanded it is a plain panel icon. */
-.collapsed .toggle .panelIcon {
-  display: none;
-}
-
-.collapsed .toggle:hover .panelIcon {
-  display: inline;
-}
-
-.collapsed .toggle:hover .railFish {
-  display: none;
-}
-
-/* Rail icons ride the primary ink (figma rail spec); expanded keeps the
-   secondary icon-button ink. */
-.collapsed .iconButton {
   color: var(--dsw-alias-label-primary);
 }
 
 /* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
-   corners); collapsed it renders as the rail's plain icon control. */
+   corners); expanded only — collapsed uses .collapsedNewSession. */
 .newSession {
   flex: none;
   display: flex;
@@ -196,34 +211,16 @@
   background: var(--dsw-alias-button-floating-hover);
 }
 
-.collapsed .newSession {
-  align-self: flex-start;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  margin: 0 0 12px;
-  gap: 0;
-  border-color: transparent;
-  background: transparent;
-}
-
-.collapsed .newSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
 .newSessionLabel {
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.collapsed .newSessionLabel {
-  max-width: 0;
-}
-
-/* Region seat: always mounted so the foot never moves. Its trailing margin
-   cancels the wide shell inset so the nested scrollbar can sit at the sidebar
-   edge; the browser restores that inset inside its own rows. */
+/* Region seat: always mounted so fold state survives; unpainted while
+   collapsed. Its trailing margin cancels the wide shell inset so the nested
+   scrollbar can sit at the sidebar edge; the browser restores that inset
+   inside its own rows. */
 .regionArea {
   flex: 1;
   min-height: 0;
@@ -235,10 +232,9 @@
   overflow: hidden;
 }
 
-.collapsed .regionArea {
-  margin-left: 0;
-  margin-right: 0;
-  padding-left: 0;
+.collapsed .regionArea,
+.collapsed .footArea {
+  display: none;
 }
 
 /* Footer seats: additive actions stack above Settings. Each occupant owns its
@@ -260,24 +256,11 @@
   display: flex;
 }
 
-.collapsed .footArea {
-  align-items: center;
-}
-
-.collapsed .settingsArea,
-.collapsed .footerActions {
-  display: flex;
-  justify-content: center;
-  width: auto;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wide,
   .fading > *,
-  .railIn .iconButton,
-  .railIn .newSession,
-  .railIn .footArea,
-  .railIn .regionArea {
+  .chromeIn .toggle,
+  .chromeIn .collapsedNewSession {
     transition: none;
     animation: none;
   }

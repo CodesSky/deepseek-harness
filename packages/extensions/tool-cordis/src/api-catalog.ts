@@ -1772,6 +1772,22 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'live operation handle for foreground await or task registration.',
       },
       {
+        signature: 'attach(owner: Agent, id: TerminalSessionId, listener: TerminalAttachListener): () => void',
+        description: 'Subscribe to raw PTY bytes without taking the exclusive send reservation. Raw chunks stay process-local and are never written to the session log.',
+        parameters: [{ name: 'owner', description: 'exact session owner.' }, { name: 'id', description: 'target PTY identity.' }, { name: 'listener', description: 'receives every subsequent output chunk until disposed.' }],
+        returns: 'disposer that removes exactly this listener.',
+      },
+      {
+        signature: 'async writeRaw(owner: Agent, id: TerminalSessionId, data: string | Uint8Array): Promise<void>',
+        description: 'Write PTY input without a readiness wait. Allowed while a model send is active; callers accept interference with that send.',
+        parameters: [{ name: 'owner', description: 'exact session owner.' }, { name: 'id', description: 'target PTY identity.' }, { name: 'data', description: 'UTF-8 text or raw bytes.' }],
+      },
+      {
+        signature: 'async resize(owner: Agent, id: TerminalSessionId, size: TerminalResizeRequest): Promise<void>',
+        description: 'Resize one owned PTY\'s geometry.',
+        parameters: [{ name: 'owner', description: 'exact session owner.' }, { name: 'id', description: 'target PTY identity.' }, { name: 'size', description: 'positive cols and rows.' }],
+      },
+      {
         signature: 'read(owner: Agent, id: TerminalSessionId, request: TerminalReadRequest = {}): TerminalReadResult',
         description: 'Read one bounded scrollback page from an owned session.',
         parameters: [{ name: 'owner', description: 'exact session owner.' }, { name: 'id', description: 'target PTY identity.' }, { name: 'request', description: 'optional newest-relative offset and line count.' }],
@@ -4207,7 +4223,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessTerminalHandle',
-    declaration: 'export interface SubprocessTerminalHandle {\n    readonly pid: number;\n    readonly output: Readable;\n    readonly done: Promise<SubprocessOutcome>;\n    write(data: string): Promise<void>;\n    inspectForeground(): Promise<SubprocessTerminalForeground | undefined>;\n    signalForeground(signal: SubprocessTerminalSignal): Promise<number>;\n    terminate(): Promise<void>;\n}',
+    declaration: 'export interface SubprocessTerminalHandle {\n    readonly pid: number;\n    readonly output: Readable;\n    readonly done: Promise<SubprocessOutcome>;\n    write(data: string): Promise<void>;\n    resize(size: {\n        cols: number;\n        rows: number;\n    }): Promise<void>;\n    inspectForeground(): Promise<SubprocessTerminalForeground | undefined>;\n    signalForeground(signal: SubprocessTerminalSignal): Promise<number>;\n    terminate(): Promise<void>;\n}',
   },
   {
     name: 'SubprocessTerminalSignal',
@@ -4242,12 +4258,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
   },
   {
+    name: 'TerminalAttachListener',
+    declaration: 'export type TerminalAttachListener = (chunk: Uint8Array) => void;',
+  },
+  {
     name: 'TerminalBackend',
     declaration: 'export interface TerminalBackend {\n    readonly type: string;\n    spawn(spec: TerminalBackendSpawnSpec): Promise<TerminalBackendSession>;\n}',
   },
   {
     name: 'TerminalBackendSession',
-    declaration: 'export interface TerminalBackendSession {\n    readonly motd: string;\n    readonly pid?: number;\n    startSend(request: TerminalSendRequest): TerminalSendOperation;\n    read(request: TerminalReadRequest): TerminalReadResult;\n    signal(signal: TerminalSignal): Promise<TerminalSignalResult>;\n    status(): TerminalSessionStatus;\n    close(reason: string): Promise<void>;\n}',
+    declaration: 'export interface TerminalBackendSession {\n    readonly motd: string;\n    readonly pid?: number;\n    startSend(request: TerminalSendRequest): TerminalSendOperation;\n    attach(listener: TerminalAttachListener): () => void;\n    writeRaw(data: string | Uint8Array): Promise<void>;\n    resize(size: TerminalResizeRequest): Promise<void>;\n    read(request: TerminalReadRequest): TerminalReadResult;\n    signal(signal: TerminalSignal): Promise<TerminalSignalResult>;\n    status(): TerminalSessionStatus;\n    close(reason: string): Promise<void>;\n}',
   },
   {
     name: 'TerminalBackendSpawnSpec',
@@ -4264,6 +4284,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TerminalReadResult',
     declaration: 'export interface TerminalReadResult {\n    text: string;\n    totalLines: number;\n    lineBegin: number;\n    lineEnd: number;\n    truncated: boolean;\n}',
+  },
+  {
+    name: 'TerminalResizeRequest',
+    declaration: 'export interface TerminalResizeRequest {\n    cols: number;\n    rows: number;\n}',
   },
   {
     name: 'TerminalResultView',

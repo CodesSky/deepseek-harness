@@ -237,6 +237,32 @@
     - id: ui-jobs
       name: '@deepseek-ai/dsh-client-ui-jobs'
 
+    # Interactive PTY panel over ctx.terminals + Host terminal.* RPCs.
+    - id: ui-terminal
+      name: '@deepseek-ai/dsh-client-ui-terminal'
+
+    # Host-owned user shell (independent of agent isolate / chat session).
+    # Disabled on Windows until ConPTY lands with the PTY stack.
+    - id: user-terminal
+      name: cordis:group
+      group: true
+      disabled: !!js process.platform === 'win32'
+      config:
+        - id: pty
+          name: '@deepseek-ai/dsh-terminal'
+
+        - id: terminal-user-shell
+          name: '@deepseek-ai/dsh-terminal-bash'
+          config:
+            backendType: user-shell
+            profile: user
+            shellPath: !!js "process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash')"
+            shellArgs: ['-i']
+            idleSilenceMs: 400
+            handoffGraceMs: 400
+            timeoutMs: 15000
+            pollIntervalMs: 50
+
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
       name: '@deepseek-ai/dsh-client-ui-goal'

@@ -339,7 +339,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolPty)
     },
     note:
-      'The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.',
+      'The six terminal tools complement one-shot shell/filesystem tools. Shipped `standard` / `code` / `cordis` presets mount them on Linux and macOS (Windows remains deferred); example ACP/headless PTY overlays stay available for focused tests. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-goal',

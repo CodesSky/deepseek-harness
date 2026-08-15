@@ -2521,6 +2521,20 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       })),
       interrupt: request => Promise.resolve(ok(request, { accepted: true as const })),
     },
+    terminals: {
+      open: request => Promise.resolve(ok(request, {
+        sessionId: '__dsh_user_shell__' as SessionId,
+        terminalSessionId: 'pty-fixture',
+        name: 'zsh',
+        type: 'user-shell',
+      })),
+      list: request => Promise.resolve(ok(request, { sessions: [] })),
+      attach: request => Promise.resolve(ok(request, { attached: true as const })),
+      detach: request => Promise.resolve(ok(request, { detached: true as const })),
+      write: request => Promise.resolve(ok(request, { ok: true as const })),
+      resize: request => Promise.resolve(ok(request, { ok: true as const })),
+      close: request => Promise.resolve(ok(request, { closed: true as const })),
+    },
     host: {
       describe: request => ok(request, {
         version: '0.0.0-fixture', cwd: '/tmp/fixture', attachedSessions, canOpenPath: true,
@@ -3093,6 +3107,13 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'subagent.history': return this.api.subagents.history(request)
       case 'subagent.prompt': return this.api.subagents.prompt(request, signal)
       case 'subagent.interrupt': return this.api.subagents.interrupt(request)
+      case 'terminal.open': return this.api.terminals.open(request)
+      case 'terminal.list': return this.api.terminals.list(request)
+      case 'terminal.attach': return this.api.terminals.attach(request)
+      case 'terminal.detach': return this.api.terminals.detach(request)
+      case 'terminal.write': return this.api.terminals.write(request)
+      case 'terminal.resize': return this.api.terminals.resize(request)
+      case 'terminal.close': return this.api.terminals.close(request)
       case 'host.describe': return this.api.host.describe(request)
       case 'host.pickDirectory': return this.api.host.pickDirectory(request, new AbortController().signal)
       case 'host.listDirectory': return this.api.host.listDirectory(request, new AbortController().signal)

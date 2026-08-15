@@ -245,6 +245,11 @@ export interface SubprocessTerminalHandle {
    */
   write(data: string): Promise<void>
   /**
+   * Change the terminal geometry after spawn.
+   * @param size - positive column and row counts for the PTY driver.
+   */
+  resize(size: { cols: number; rows: number }): Promise<void>
+  /**
    * Inspect the current foreground process group.
    * @returns its id and input-wait fact, or undefined when no foreground group can be resolved.
    */

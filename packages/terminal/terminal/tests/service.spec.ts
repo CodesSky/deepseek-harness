@@ -56,6 +56,9 @@ class StubSession implements TerminalBackendSession {
   rejectSend = false
   rejectClose = false
   closeGate: PromiseWithResolvers<undefined> | undefined
+  readonly attaches: Array<(chunk: Uint8Array) => void> = []
+  readonly writes: Array<string | Uint8Array> = []
+  readonly resizes: Array<{ cols: number; rows: number }> = []
 
   startSend(_request: TerminalSendRequest): TerminalSendOperation {
     if (this.rejectSend) {
@@ -81,6 +84,22 @@ class StubSession implements TerminalBackendSession {
     }
     this.operation = operation
     return operation
+  }
+
+  attach(listener: (chunk: Uint8Array) => void): () => void {
+    this.attaches.push(listener)
+    return () => {
+      const index = this.attaches.indexOf(listener)
+      if (index >= 0) this.attaches.splice(index, 1)
+    }
+  }
+
+  async writeRaw(data: string | Uint8Array): Promise<void> {
+    this.writes.push(data)
+  }
+
+  async resize(size: { cols: number; rows: number }): Promise<void> {
+    this.resizes.push(size)
   }
 
   read(request: TerminalReadRequest) {
@@ -517,6 +536,34 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     expect(await first).toBe(true)
     expect(await second).toBe(false)
     expect(() => ctx.terminals.read(owner, created.sessionId)).toThrow('unknown PTY')
+  })
+
+  it('forwards attach, writeRaw, and resize through the owner fence without taking SEND_ACTIVE', async () => {
+    const ctx = await harness()
+    const owner = stubAgent(ctx, 'owner')
+    const foreign = stubAgent(ctx, 'foreign')
+    ctx.agents.register(owner)
+    ctx.agents.register(foreign)
+    const b = backend()
+    ctx.terminals.registerBackend(b.provider)
+    const created = await ctx.terminals.spawn(owner, { type: 'stub' })
+    const session = b.sessions[0]!
+    const chunks: Uint8Array[] = []
+    const detach = ctx.terminals.attach(owner, created.sessionId, (chunk) => { chunks.push(chunk) })
+    expect(session.attaches).toHaveLength(1)
+    session.attaches[0]!(new Uint8Array([1, 2]))
+    expect(chunks).toEqual([new Uint8Array([1, 2])])
+    const send = ctx.terminals.startSend(owner, created.sessionId, { text: 'hi', submit: true })
+    await ctx.terminals.writeRaw(owner, created.sessionId, 'ui')
+    await ctx.terminals.resize(owner, created.sessionId, { cols: 80, rows: 24 })
+    expect(session.writes).toEqual(['ui'])
+    expect(session.resizes).toEqual([{ cols: 80, rows: 24 }])
+    expect(session.operation).toBe(send)
+    expect(() => ctx.terminals.attach(foreign, created.sessionId, () => {})).toThrow(/FOREIGN_SESSION|belongs to another/)
+    detach()
+    expect(session.attaches).toHaveLength(0)
+    send.cancel()
+    await send.done
   })
 
   it('awaits owner cleanup and removes sessions while backend registration may reload', async () => {

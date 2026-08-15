@@ -14,6 +14,7 @@ import type { SettingsApi } from './settings.ts'
 import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
 import type { SubagentsApi } from './subagents.ts'
+import type { TerminalsApi } from './terminals.ts'
 import type { RpcResponse } from './rpc.ts'
 
 /**
@@ -38,6 +39,13 @@ export interface RpcMethodMap {
   'subagent.history': SubagentsApi['history']
   'subagent.prompt': SubagentsApi['prompt']
   'subagent.interrupt': SubagentsApi['interrupt']
+  'terminal.open': TerminalsApi['open']
+  'terminal.list': TerminalsApi['list']
+  'terminal.attach': TerminalsApi['attach']
+  'terminal.detach': TerminalsApi['detach']
+  'terminal.write': TerminalsApi['write']
+  'terminal.resize': TerminalsApi['resize']
+  'terminal.close': TerminalsApi['close']
   'host.describe': HostApi['describe']
   'host.pickDirectory': HostApi['pickDirectory']
   'host.listDirectory': HostApi['listDirectory']

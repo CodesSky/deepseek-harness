@@ -981,6 +981,16 @@
       "source": "packages/terminal/terminal/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/terminal.md",
+      "symbol": "TerminalResizeRequest",
+      "source": "packages/terminal/terminal/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/terminal.md",
+      "symbol": "TerminalAttachListener",
+      "source": "packages/terminal/terminal/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/sandbox.md",
       "symbol": "SandboxMode",
       "source": "packages/sandbox/sandbox/src/index.ts"

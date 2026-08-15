@@ -14,6 +14,10 @@ Owner-scoped persistent PTY seam. `TerminalSessionService` registers as `ctx.ter
 - `hasOwnerActivity(owner)` spans unpublished setup through final close, so lifecycle policy can fence the exact owner without a publication race.
 - A successful spawn publishes one `TerminalSessionId`. The optional `name` is owner-local display metadata, never authority.
 - One session accepts at most one live send operation. Reads and signals may observe it; another send fails until the operation settles.
+- `attach(listener)` is non-exclusive and does not take the send reservation; UI consumers may observe raw bytes while a model send is active.
+- `writeRaw(data)` writes without a readiness wait and is allowed during an active model send; callers accept interference with that send.
+- `resize({ cols, rows })` updates live PTY geometry through the subprocess terminal handle.
+- Raw attach bytes stay process-local and are never written to the session event log.
 - `TerminalSendResult.waitReason` and `sessionStatus` are independent. `session_exit` describes the top-level PTY process, not an arbitrary foreground command.
 - `kill()` and disposal resolve only after the backend's captured process tree is quiescent. A cleanup failure rejects instead of claiming success and clears the matching backend and registry fences so a later close can retry without disturbing a newer attempt.
 

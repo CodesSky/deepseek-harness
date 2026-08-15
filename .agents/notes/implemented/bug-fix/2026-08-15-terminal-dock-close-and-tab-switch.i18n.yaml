@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-15-terminal-dock-close-and-tab-switch.md
+2026-08-15-terminal-dock-close-and-tab-switch.md: 9ac5d057857d10b34ac8339bf35d6952de251a3a
+2026-08-15-terminal-dock-close-and-tab-switch.zh.md: 2e564061e507c5956db6bb8e41f3a75422f733cb

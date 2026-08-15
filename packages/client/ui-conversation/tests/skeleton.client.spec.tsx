@@ -337,6 +337,9 @@ describe('ConversationRoot resident composer', () => {
     expect(seat?.contains(textarea)).toBe(true)
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
+    expect(header?.getAttribute('data-dsh-drag-chrome')).toBe('deep')
+    expect(header?.hasAttribute('data-tauri-drag-region')).toBe(false)
+    expect(b.view.container.querySelector('[class*="desktopDragBand"]')).toBeNull()
   })
 
   it('sticky composer seat wraps the whole overlay chain, not only the fallback stack', () => {
@@ -362,6 +365,8 @@ describe('ConversationRoot resident composer', () => {
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
     expect(header?.getAttribute('aria-hidden')).toBe('true')
+    expect(header?.hasAttribute('data-dsh-drag-chrome')).toBe(false)
+    expect(b.view.container.querySelector('[data-dsh-drag-chrome]:not(header)')).not.toBeNull()
     expect(b.view.getByText('探索未至之境')).toBeTruthy()
     expect(b.view.getByText('预览版')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()

@@ -233,7 +233,6 @@ async function rollbackUnpublishedTerminal(
     }
   }
   // Completion can settle while any awaited provider cleanup above is running.
-  // oxlint-disable-next-line typescript/no-unnecessary-condition -- Provider cleanup yields to completion.
   if (!topLevelExited) {
     try {
       await handle.kill()
@@ -257,7 +256,6 @@ async function rollbackUnpublishedTerminal(
     }
   }
   // The bounded completion race above updates this callback-owned state.
-  // oxlint-disable-next-line typescript/no-unnecessary-condition -- The callback mutates this after a race.
   if (!topLevelExited) {
     proofFailures.push(new Error(`subprocess-e2b: terminal setup rollback failed; surviving pid: ${handle.pid}`))
   }
@@ -307,6 +305,20 @@ export class E2BTerminalHandle implements SubprocessTerminalHandle {
     return this.trackOperation(async (signal) => {
       if (this.topLevelExited) throw new Error('terminal process has exited')
       await this.sandbox.pty.sendInput(this.pid, Buffer.from(data, 'utf8'), { signal })
+    })
+  }
+
+  /** @inheritdoc */
+  resize(size: { cols: number; rows: number }): Promise<void> {
+    return this.trackOperation(async (signal) => {
+      if (this.topLevelExited) throw new Error('terminal process has exited')
+      if (!Number.isSafeInteger(size.cols) || size.cols <= 0) {
+        throw new Error('terminal cols must be a positive safe integer')
+      }
+      if (!Number.isSafeInteger(size.rows) || size.rows <= 0) {
+        throw new Error('terminal rows must be a positive safe integer')
+      }
+      await this.sandbox.pty.resize(this.pid, size, { signal })
     })
   }
 

@@ -45,6 +45,23 @@ interface TerminalBackendSession {
   readonly pid?: number
   /** Start one exclusive send operation. */
   startSend(request: TerminalSendRequest): TerminalSendOperation
+  /**
+   * Subscribe to raw PTY output without taking the exclusive send reservation.
+   * @param listener - receives every subsequent output chunk until disposed.
+   * @returns disposer that removes exactly this listener.
+   */
+  attach(listener: TerminalAttachListener): () => void
+  /**
+   * Write bytes without starting a readiness wait.
+   * Concurrent with an active model send; the caller accepts interference.
+   * @param data - UTF-8 text or raw bytes for the PTY input.
+   */
+  writeRaw(data: string | Uint8Array): Promise<void>
+  /**
+   * Resize the live PTY geometry.
+   * @param size - positive cols and rows for the terminal driver.
+   */
+  resize(size: TerminalResizeRequest): Promise<void>
   /** Read one bounded page from retained scrollback. */
   read(request: TerminalReadRequest): TerminalReadResult
   /** Signal the verified foreground process group. */
@@ -84,6 +101,21 @@ interface TerminalSendResult {
   /** Whether output was dropped from the operation or retained scrollback. */
   truncated: boolean
 }
+```
+
+```ts type-equiv
+/** Request to change one live PTY's geometry. */
+interface TerminalResizeRequest {
+  /** Positive column count for the PTY driver. */
+  cols: number
+  /** Positive row count for the PTY driver. */
+  rows: number
+}
+```
+
+```ts type-equiv
+/** One raw PTY output chunk delivered to a non-exclusive attach observer. */
+type TerminalAttachListener = (chunk: Uint8Array) => void
 ```
 
 ## 归属与持久性
@@ -144,6 +176,33 @@ hasOwnerActivity(owner: Agent): boolean
 startSend(owner: Agent, id: TerminalSessionId, request: TerminalSendRequest): TerminalSendOperation
 
 /**
+ * Subscribe to raw PTY bytes without taking the exclusive send reservation.
+ * Raw chunks stay process-local and are never written to the session log.
+ * @param owner - exact session owner.
+ * @param id - target PTY identity.
+ * @param listener - receives every subsequent output chunk until disposed.
+ * @returns disposer that removes exactly this listener.
+ */
+attach(owner: Agent, id: TerminalSessionId, listener: TerminalAttachListener): () => void
+
+/**
+ * Write PTY input without a readiness wait.
+ * Allowed while a model send is active; callers accept interference with that send.
+ * @param owner - exact session owner.
+ * @param id - target PTY identity.
+ * @param data - UTF-8 text or raw bytes.
+ */
+async writeRaw(owner: Agent, id: TerminalSessionId, data: string | Uint8Array): Promise<void>
+
+/**
+ * Resize one owned PTY's geometry.
+ * @param owner - exact session owner.
+ * @param id - target PTY identity.
+ * @param size - positive cols and rows.
+ */
+async resize(owner: Agent, id: TerminalSessionId, size: TerminalResizeRequest): Promise<void>
+
+/**
  * Read one bounded scrollback page from an owned session.
  * @param owner - exact session owner.
  * @param id - target PTY identity.
@@ -180,5 +239,5 @@ list(owner: Agent): TerminalSessionSnapshot[]
 
 Types: [Agent](core.md)
 
-Source: [`packages/terminal/terminal/src/index.ts:105`](../../packages/terminal/terminal/src/index.ts)
+Source: [`packages/terminal/terminal/src/index.ts:109`](../../packages/terminal/terminal/src/index.ts)
 <!-- END GENERATED cordis-surface -->

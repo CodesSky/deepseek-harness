@@ -2,6 +2,13 @@
 
 import z from '@deepseek-ai/schemastery'
 
+/**
+ * Shell environment profile.
+ * - `controlled`: model-facing PTY — dumb TERM, owned PS1, OSC readiness markers.
+ * - `user`: product UI shell — xterm-256color and the user's interactive profile.
+ */
+export type ShellProfile = 'controlled' | 'user'
+
 /** Public plugin configuration. */
 export interface Config {
   /** Backend registry type (default: `shell`). */
@@ -10,6 +17,11 @@ export interface Config {
   shellPath?: string
   /** Shell arguments (default: `--noprofile --norc -i`). */
   shellArgs?: string[]
+  /**
+   * Environment profile for spawned shells (default: `controlled`).
+   * Use `user` for Host-owned interactive UI terminals.
+   */
+  profile?: ShellProfile
   /** Terminal rows. */
   rows?: number
   /** Terminal columns. */
@@ -45,6 +57,7 @@ export const Config: z<Config> = z.object({
   backendType: z.string().default('shell'),
   shellPath: z.string().default('/bin/bash'),
   shellArgs: z.array(z.string()).default(['--noprofile', '--norc', '-i']),
+  profile: z.union([z.const('controlled'), z.const('user')]).default('controlled'),
   rows: z.number().default(40),
   cols: z.number().default(160),
   scrollbackLines: z.number().default(10_000),

@@ -91,6 +91,7 @@ export function DetailsPanel({ useSession, useSessions, sessionId, useStore, ren
         </button>
       </div>
       <div className={css.body}>
+        {renderSlot('terminal.panel', {})}
         {selection === null || callId === undefined
           ? <div className={css.empty}>{t('details.empty')}</div>
           : material === null

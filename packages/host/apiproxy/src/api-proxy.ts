@@ -4,19 +4,21 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import type { Agent, ModelSelection, ModelSelectionRef, AgentOptions, AgentStatus } from '@deepseek-ai/dsh-agent'
+import { Inbox } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import { AttachmentError } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { contentHasImage, createUserMessage, freezeMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { errorChain } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
-import { isAppendSurfaceEvent, isJsonValue } from '@deepseek-ai/dsh-session'
-import type { JsonValue, Session, SessionEvent, SessionEventMap, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
+import { isAppendSurfaceEvent, isJsonValue, Session, SessionId } from '@deepseek-ai/dsh-session'
+import type { JsonValue, SessionEvent, SessionEventMap, SessionHeader, UserMessage } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionSearchCursor } from '@deepseek-ai/dsh-session-query'
 import { SubagentError } from '@deepseek-ai/dsh-subagent'
@@ -40,8 +42,9 @@ import type {
   ModelCatalogFailure, ModelProviderGroup,
   ModelReasoning, MuxFrame, PromptContentPart, QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
   QueuedInboxItem, SessionSummary, SettingsNamespaceView, SubagentAddress, JobView, ToolEventView,
-  WorkspaceId, WorkspaceView,
+  TerminalUiSessionView, WorkspaceId, WorkspaceView,
 } from './api/index.ts'
+import { USER_SHELL_BACKEND_TYPE, USER_SHELL_SESSION_ID } from './api/index.ts'
 import {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
   flushLiveSessionLog,
@@ -62,6 +65,10 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 // Type-only: resolves `ctx.get('tasks')` to the background job registry.
 import type {} from '@deepseek-ai/dsh-jobs'
 import type { JobSnapshot } from '@deepseek-ai/dsh-jobs'
+// Type-only: resolves `ctx.get('terminals')` and `serviceFor(..., 'terminals')`
+// for the interactive PTY panel (host fallback + preset isolate realm).
+import type {} from '@deepseek-ai/dsh-terminal'
+import { TerminalError, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
 // Type-only: resolves `ctx.get('sessionProjectionCache')` (the cold listing column).
 import type {} from '@deepseek-ai/dsh-session-projection-cache'
 // GoalError narrows domain rejections to their stable codes at the wire boundary.
@@ -415,6 +422,11 @@ class FrameQueue<F> {
   private buffer: F[] = []
   private waiter: (() => void) | undefined
   private done = false
+
+  /** Current unread frame count (used for interactive PTY backpressure). */
+  get bufferedLength(): number {
+    return this.buffer.length
+  }
 
   push(item: F): void {
     if (this.done) return
@@ -1131,6 +1143,51 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
   const pendingApprovals = new Map<RpcId, PendingApproval>()
   const muxQueues = new Set<FrameQueue<RpcRequest<MuxFrame>>>()
   const imageAdmissionChains = new WeakMap<Agent, Promise<void>>()
+  /** Interactive PTY attaches: raw bytes stay process-local and never enter the session log. */
+  const terminalAttaches = new Map<string, {
+    sessionId: SessionId
+    terminalSessionId: string
+    seq: number
+    dispose: () => void
+    refs: number
+    overrunPending: boolean
+  }>()
+  /** Drop PTY UI chunks when any mux queue exceeds this buffered frame count. */
+  const TERMINAL_CHUNK_BACKPRESSURE = 64
+
+  function terminalAttachKey(sessionId: SessionId, terminalSessionId: string): string {
+    return `${sessionId}\0${terminalSessionId}`
+  }
+
+  function pushTerminalChunk(
+    sessionId: SessionId,
+    terminalSessionId: string,
+    seq: number,
+    dataBase64: string,
+    overrun?: true,
+  ): void {
+    let delivered = false
+    for (const queue of muxQueues) {
+      if (queue.bufferedLength > TERMINAL_CHUNK_BACKPRESSURE) {
+        const attach = terminalAttaches.get(terminalAttachKey(sessionId, terminalSessionId))
+        if (attach !== undefined) attach.overrunPending = true
+        continue
+      }
+      queue.push(frame({
+        type: 'session/terminal-chunk',
+        sessionId,
+        terminalSessionId,
+        seq,
+        dataBase64,
+        ...overrun === true ? { overrun: true as const } : {},
+      }))
+      delivered = true
+    }
+    if (!delivered) {
+      const attach = terminalAttaches.get(terminalAttachKey(sessionId, terminalSessionId))
+      if (attach !== undefined) attach.overrunPending = true
+    }
+  }
 
   /** Serialize image admission with model selection for one agent. */
   function serializeImageAdmission<T>(agent: Agent, operation: () => Promise<T>): Promise<T> {
@@ -1800,6 +1857,143 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       return { error: { code: 'internal', message: 'goal service is absent: neither this session\'s agent preset nor the host composition mounts @deepseek-ai/dsh-goal', details: {} } }
     }
     return goals
+  }
+
+  /**
+   * Resolve the PTY seam THIS agent runs.
+   *
+   * Coding presets mount `ctx.terminals` behind an `isolate` realm, which no
+   * host context resolves. Host readers therefore key by the live agent — the
+   * same stance as goals and skills — and only a composition that mounts the
+   * seam nowhere is genuinely unavailable.
+   * @param agent - live agent whose preset (or host fallback) owns the seam.
+   * @returns the agent's terminals service, or undefined when none is mounted.
+   */
+  function terminalsServiceFor(
+    agent: Agent,
+  ): NonNullable<ReturnType<typeof ctx.get<'terminals'>>> | undefined {
+    const presets = ctx.get('agentPresets')
+    return presets?.serviceFor(agent, 'terminals') ?? ctx.get('terminals')
+  }
+
+  /**
+   * Host-owned interactive user-shell agent. Detached from SessionStore so it
+   * never appears in session.list; registered only for PTY owner liveness.
+   */
+  let userShellOwner: Agent | undefined
+  let userShellDetach: (() => void) | undefined
+  let userShellSerial = 0
+
+  function ensureUserShellOwner(): Agent | { error: RpcError } {
+    const existing = ctx.agents.get(USER_SHELL_SESSION_ID)
+    if (existing !== undefined) {
+      userShellOwner = existing
+      return existing
+    }
+    if (userShellOwner !== undefined && ctx.agents.get(userShellOwner.id) === userShellOwner) {
+      return userShellOwner
+    }
+    const terminals = ctx.get('terminals')
+    if (terminals === undefined) {
+      return {
+        error: {
+          code: 'terminal-unavailable',
+          message: 'Host PTY seam is not mounted; mount @deepseek-ai/dsh-terminal for user shells',
+          details: { sessionId: USER_SHELL_SESSION_ID },
+        },
+      }
+    }
+    const session = Session.create(USER_SHELL_SESSION_ID, undefined, {
+      version: 0,
+      id: USER_SHELL_SESSION_ID,
+      createdAt: Date.now(),
+      cwd: defaults.cwd,
+    })
+    const agent = {
+      id: USER_SHELL_SESSION_ID,
+      options: {},
+      session,
+      inbox: new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} }),
+      status: 'idle' as const,
+      ctx,
+      cancel() {},
+      whenIdle: async () => {},
+      runMaintenance: async <T>(task: (signal: AbortSignal) => Promise<T>): Promise<T> =>
+        task(new AbortController().signal),
+      send() {},
+      followup() {},
+      steer() {},
+      inject() {},
+    } as unknown as Agent
+    userShellDetach?.()
+    userShellDetach = ctx.agents.register(agent)
+    userShellOwner = agent
+    return agent
+  }
+
+  /**
+   * Resolve the live agent + terminals service for a terminal.* sessionId.
+   * {@link USER_SHELL_SESSION_ID} addresses the Host user-shell owner.
+   */
+  function terminalOwnerFor(
+    sessionId: SessionId,
+  ):
+    | { agent: Agent; terminals: NonNullable<ReturnType<typeof ctx.get<'terminals'>>> }
+    | { error: RpcError } {
+    if (sessionId === USER_SHELL_SESSION_ID) {
+      const owner = ensureUserShellOwner()
+      if ('error' in owner) return owner
+      const terminals = ctx.get('terminals')
+      if (terminals === undefined) {
+        return {
+          error: {
+            code: 'terminal-unavailable',
+            message: 'Host PTY seam is not mounted; mount @deepseek-ai/dsh-terminal for user shells',
+            details: { sessionId },
+          },
+        }
+      }
+      return { agent: owner, terminals }
+    }
+    const agent = ctx.agents.get(sessionId)
+    if (agent === undefined) {
+      return {
+        error: {
+          code: 'session-not-found',
+          message: 'no live agent for this session',
+          details: { sessionId },
+        },
+      }
+    }
+    const terminals = terminalsServiceFor(agent)
+    if (terminals === undefined) {
+      return {
+        error: {
+          code: 'terminal-unavailable',
+          message: 'PTY seam is not mounted in this composition',
+          details: { sessionId },
+        },
+      }
+    }
+    return { agent, terminals }
+  }
+
+  function terminalUiView(
+    snapshot: ReturnType<NonNullable<ReturnType<typeof ctx.get<'terminals'>>>['list']>[number],
+  ): TerminalUiSessionView {
+    return {
+      terminalSessionId: String(snapshot.sessionId),
+      ...snapshot.name !== undefined ? { name: snapshot.name } : {},
+      type: snapshot.type,
+      ...snapshot.pid !== undefined ? { pid: snapshot.pid } : {},
+      status: snapshot.status.kind === 'running'
+        ? { kind: 'running' as const }
+        : {
+          kind: 'exited' as const,
+          exitCode: snapshot.status.exitCode,
+          signal: snapshot.status.signal,
+        },
+    }
   }
 
   /** Map one goal-domain rejection to the wire error (stable GoalError codes ride in details). */
@@ -2799,6 +2993,214 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
     },
 
+    terminals: {
+      async open(request) {
+        const owner = ensureUserShellOwner()
+        if ('error' in owner) return err(request, owner.error)
+        const terminals = ctx.get('terminals')
+        if (terminals === undefined) {
+          return err(request, {
+            code: 'terminal-unavailable',
+            message: 'Host PTY seam is not mounted; mount @deepseek-ai/dsh-terminal for user shells',
+            details: { sessionId: USER_SHELL_SESSION_ID },
+          })
+        }
+        const cwd = request.payload.cwd ?? owner.session.header.cwd ?? defaults.cwd
+        userShellSerial += 1
+        const name = request.payload.name ?? `zsh-${userShellSerial}`
+        try {
+          const spawned = await terminals.spawn(owner, {
+            type: USER_SHELL_BACKEND_TYPE,
+            name,
+            cwd,
+          })
+          return ok(request, {
+            sessionId: USER_SHELL_SESSION_ID,
+            terminalSessionId: String(spawned.sessionId),
+            ...spawned.name !== undefined ? { name: spawned.name } : { name },
+            type: USER_SHELL_BACKEND_TYPE,
+          })
+        } catch (error: unknown) {
+          if (error instanceof TerminalError) {
+            return err(request, {
+              code: 'terminal-unavailable',
+              message: error.message,
+              details: { sessionId: USER_SHELL_SESSION_ID },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: error instanceof Error ? error.message : String(error),
+            details: {},
+          })
+        }
+      },
+
+      list(request) {
+        const { sessionId } = request.payload
+        const resolved = terminalOwnerFor(sessionId)
+        if ('error' in resolved) return Promise.resolve(err(request, resolved.error))
+        const sessions: TerminalUiSessionView[] = resolved.terminals.list(resolved.agent).map(terminalUiView)
+        return Promise.resolve(ok(request, { sessions }))
+      },
+
+      attach(request) {
+        const { sessionId, terminalSessionId } = request.payload
+        const resolved = terminalOwnerFor(sessionId)
+        if ('error' in resolved) return Promise.resolve(err(request, resolved.error))
+        const key = terminalAttachKey(sessionId, terminalSessionId)
+        const existing = terminalAttaches.get(key)
+        if (existing !== undefined) {
+          existing.refs += 1
+          return Promise.resolve(ok(request, { attached: true as const }))
+        }
+        try {
+          const id = TerminalSessionId(terminalSessionId)
+          const attach = {
+            sessionId,
+            terminalSessionId,
+            seq: 0,
+            refs: 1,
+            overrunPending: false,
+            dispose: resolved.terminals.attach(resolved.agent, id, (chunk) => {
+              const record = terminalAttaches.get(key)
+              if (record === undefined) return
+              record.seq += 1
+              const overrun = record.overrunPending ? true as const : undefined
+              record.overrunPending = false
+              pushTerminalChunk(
+                sessionId,
+                terminalSessionId,
+                record.seq,
+                Buffer.from(chunk).toString('base64'),
+                overrun,
+              )
+            }),
+          }
+          terminalAttaches.set(key, attach)
+          return Promise.resolve(ok(request, { attached: true as const }))
+        } catch (error: unknown) {
+          if (error instanceof TerminalError) {
+            return Promise.resolve(err(request, {
+              code: 'terminal-unavailable',
+              message: error.message,
+              details: { sessionId, terminalSessionId },
+            }))
+          }
+          return Promise.resolve(err(request, {
+            code: 'internal',
+            message: error instanceof Error ? error.message : String(error),
+            details: {},
+          }))
+        }
+      },
+
+      detach(request) {
+        const { sessionId, terminalSessionId } = request.payload
+        const key = terminalAttachKey(sessionId, terminalSessionId)
+        const existing = terminalAttaches.get(key)
+        if (existing === undefined) {
+          return Promise.resolve(ok(request, { detached: true as const }))
+        }
+        existing.refs -= 1
+        if (existing.refs <= 0) {
+          existing.dispose()
+          terminalAttaches.delete(key)
+        }
+        return Promise.resolve(ok(request, { detached: true as const }))
+      },
+
+      async write(request) {
+        const { sessionId, terminalSessionId, data } = request.payload
+        const resolved = terminalOwnerFor(sessionId)
+        if ('error' in resolved) return err(request, resolved.error)
+        try {
+          const parts: Uint8Array[] = []
+          if (data.text !== undefined && data.text.length > 0) {
+            parts.push(Buffer.from(data.text, 'utf8'))
+          }
+          if (data.dataBase64 !== undefined && data.dataBase64.length > 0) {
+            parts.push(Buffer.from(data.dataBase64, 'base64'))
+          }
+          if (parts.length === 0) {
+            return err(request, {
+              code: 'bad-request',
+              message: 'terminal write requires text or dataBase64',
+              details: { issues: [] },
+            })
+          }
+          const payload = Buffer.concat(parts)
+          await resolved.terminals.writeRaw(resolved.agent, TerminalSessionId(terminalSessionId), payload)
+          return ok(request, { ok: true as const })
+        } catch (error: unknown) {
+          if (error instanceof TerminalError) {
+            return err(request, {
+              code: 'terminal-unavailable',
+              message: error.message,
+              details: { sessionId, terminalSessionId },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: error instanceof Error ? error.message : String(error),
+            details: {},
+          })
+        }
+      },
+
+      async resize(request) {
+        const { sessionId, terminalSessionId, cols, rows } = request.payload
+        const resolved = terminalOwnerFor(sessionId)
+        if ('error' in resolved) return err(request, resolved.error)
+        try {
+          await resolved.terminals.resize(resolved.agent, TerminalSessionId(terminalSessionId), { cols, rows })
+          return ok(request, { ok: true as const })
+        } catch (error: unknown) {
+          if (error instanceof TerminalError) {
+            return err(request, {
+              code: 'terminal-unavailable',
+              message: error.message,
+              details: { sessionId, terminalSessionId },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: error instanceof Error ? error.message : String(error),
+            details: {},
+          })
+        }
+      },
+
+      async close(request) {
+        const { sessionId, terminalSessionId } = request.payload
+        const resolved = terminalOwnerFor(sessionId)
+        if ('error' in resolved) return err(request, resolved.error)
+        const key = terminalAttachKey(sessionId, terminalSessionId)
+        const existing = terminalAttaches.get(key)
+        if (existing !== undefined) {
+          existing.dispose()
+          terminalAttaches.delete(key)
+        }
+        try {
+          await resolved.terminals.kill(resolved.agent, TerminalSessionId(terminalSessionId), 'user close')
+          return ok(request, { closed: true as const })
+        } catch (error: unknown) {
+          if (error instanceof TerminalError) {
+            return err(request, {
+              code: 'terminal-unavailable',
+              message: error.message,
+              details: { sessionId, terminalSessionId },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: error instanceof Error ? error.message : String(error),
+            details: {},
+          })
+        }
+      },
+    },
+
     workspace: {
       list(request) {
         return Promise.resolve(ok(request, {
@@ -3528,6 +3930,10 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         return queue.iterate(signal, () => {
           muxQueues.delete(queue)
           for (const dispose of disposers) dispose()
+          if (muxQueues.size === 0) {
+            for (const attach of terminalAttaches.values()) attach.dispose()
+            terminalAttaches.clear()
+          }
         })
       },
 

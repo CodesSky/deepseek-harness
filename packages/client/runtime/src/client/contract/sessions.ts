@@ -127,4 +127,19 @@ export interface ISessions {
    * @returns binding, or undefined for a session neither listed nor already scoped.
    */
   binding(id: SessionId): SessionBinding | undefined
+  /**
+   * Subscribe to interactive PTY chunk frames from the mux stream.
+   * @param listener - receives each session/terminal-chunk frame.
+   * @returns disposer that removes exactly this listener.
+   */
+  onTerminalChunk(
+    listener: (frame: {
+      type: 'session/terminal-chunk'
+      sessionId: SessionId
+      terminalSessionId: string
+      seq: number
+      dataBase64: string
+      overrun?: true
+    }) => void,
+  ): () => void
 }

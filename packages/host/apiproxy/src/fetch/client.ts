@@ -67,6 +67,15 @@ import {
   subagentListValueSchema,
   subagentPromptValueSchema,
 } from '../api/subagents.schema.ts'
+import {
+  terminalAttachValueSchema,
+  terminalCloseValueSchema,
+  terminalDetachValueSchema,
+  terminalListValueSchema,
+  terminalOpenValueSchema,
+  terminalResizeValueSchema,
+  terminalWriteValueSchema,
+} from '../api/terminals.schema.ts'
 
 /**
  * Client consumption face of the contract (shape a): same domain tree as ApiProxy, but unary
@@ -104,6 +113,15 @@ export interface IApiClient {
     history(payload: RequestPayload<'subagent.history'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'subagent.history'>>>
     prompt(payload: RequestPayload<'subagent.prompt'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'subagent.prompt'>>>
     interrupt(payload: RequestPayload<'subagent.interrupt'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'subagent.interrupt'>>>
+  }
+  terminals: {
+    open(payload: RequestPayload<'terminal.open'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.open'>>>
+    list(payload: RequestPayload<'terminal.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.list'>>>
+    attach(payload: RequestPayload<'terminal.attach'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.attach'>>>
+    detach(payload: RequestPayload<'terminal.detach'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.detach'>>>
+    write(payload: RequestPayload<'terminal.write'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.write'>>>
+    resize(payload: RequestPayload<'terminal.resize'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.resize'>>>
+    close(payload: RequestPayload<'terminal.close'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'terminal.close'>>>
   }
   host: {
     describe(payload: RequestPayload<'host.describe'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'host.describe'>>>
@@ -186,6 +204,13 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'subagent.history': subagentHistoryValueSchema,
   'subagent.prompt': subagentPromptValueSchema,
   'subagent.interrupt': subagentInterruptValueSchema,
+  'terminal.open': terminalOpenValueSchema,
+  'terminal.list': terminalListValueSchema,
+  'terminal.attach': terminalAttachValueSchema,
+  'terminal.detach': terminalDetachValueSchema,
+  'terminal.write': terminalWriteValueSchema,
+  'terminal.resize': terminalResizeValueSchema,
+  'terminal.close': terminalCloseValueSchema,
   'host.describe': hostDescribeValueSchema,
   'host.pickDirectory': hostPickDirectoryValueSchema,
   'host.listDirectory': hostListDirectoryValueSchema,
@@ -429,6 +454,16 @@ export abstract class AbstractApiClient implements IApiClient {
     history: (payload, signal) => this.callUnary('subagent.history', payload, signal),
     prompt: (payload, signal) => this.callUnary('subagent.prompt', payload, signal),
     interrupt: (payload, signal) => this.callUnary('subagent.interrupt', payload, signal),
+  }
+
+  readonly terminals: IApiClient['terminals'] = {
+    open: (payload, signal) => this.callUnary('terminal.open', payload, signal),
+    list: (payload, signal) => this.callUnary('terminal.list', payload, signal),
+    attach: (payload, signal) => this.callUnary('terminal.attach', payload, signal),
+    detach: (payload, signal) => this.callUnary('terminal.detach', payload, signal),
+    write: (payload, signal) => this.callUnary('terminal.write', payload, signal),
+    resize: (payload, signal) => this.callUnary('terminal.resize', payload, signal),
+    close: (payload, signal) => this.callUnary('terminal.close', payload, signal),
   }
 
   readonly host: IApiClient['host'] = {

@@ -86,6 +86,8 @@ class FakeTerminal implements SubprocessTerminalHandle {
     this.writes.push(data)
   }
 
+  async resize(_size: { cols: number; rows: number }): Promise<void> {}
+
   async inspectForeground() {
     const processGroupId = this.inspector.foregroundPgid()
     return processGroupId === undefined
@@ -130,7 +132,8 @@ function makeSession(
 
 function config(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
-    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], rows: 24, cols: 80,
+    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], profile: 'controlled',
+    rows: 24, cols: 80,
     scrollbackLines: 10, scrollbackMaxBytes: 128, maxReadBytes: 64,
     pollIntervalMs: 10, exactProbeAfterMs: 20, idleSilenceMs: 50, handoffGraceMs: 10, timeoutMs: 100,
     disposeGraceMs: 20,

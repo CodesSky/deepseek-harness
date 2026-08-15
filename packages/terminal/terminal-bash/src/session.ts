@@ -184,6 +184,7 @@ export class LocalPtySession implements TerminalBackendSession {
   private closing = false
   private closePromise: Promise<void> | undefined
   private transportFailure: Error | undefined
+  private readonly attachListeners = new Set<(chunk: Uint8Array) => void>()
 
   constructor(
     private readonly terminal: SubprocessTerminalHandle,
@@ -257,6 +258,39 @@ export class LocalPtySession implements TerminalBackendSession {
     return operation
   }
 
+  /**
+   * Subscribe to raw PTY output without taking the exclusive send reservation.
+   * @param listener - receives every subsequent output chunk until disposed.
+   * @returns disposer that removes exactly this listener.
+   */
+  attach(listener: (chunk: Uint8Array) => void): () => void {
+    if (this.closing) throw new Error('PTY session is closing')
+    this.attachListeners.add(listener)
+    return () => { this.attachListeners.delete(listener) }
+  }
+
+  /**
+   * Write bytes without starting a readiness wait.
+   * @param data - UTF-8 text or raw bytes for the PTY input.
+   */
+  async writeRaw(data: string | Uint8Array): Promise<void> {
+    if (this.closing) throw new Error('PTY session is closing')
+    if (this.statusValue.kind === 'exited') throw new Error('PTY session has exited')
+    const text = typeof data === 'string' ? data : Buffer.from(data).toString('latin1')
+    if (text.length === 0) return
+    await this.terminal.write(text)
+  }
+
+  /**
+   * Resize the live PTY geometry.
+   * @param size - positive cols and rows for the terminal driver.
+   */
+  async resize(size: { cols: number; rows: number }): Promise<void> {
+    if (this.closing) throw new Error('PTY session is closing')
+    if (this.statusValue.kind === 'exited') throw new Error('PTY session has exited')
+    await this.terminal.resize(size)
+  }
+
   private async beginSend(operation: LocalSendOperation, request: TerminalSendRequest): Promise<void> {
     let foreground: SubprocessTerminalForeground | undefined
     try {
@@ -294,7 +328,6 @@ export class LocalPtySession implements TerminalBackendSession {
         return
       }
       // Closing can race the awaited provider write even though static analysis sees only local assignments.
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- awaited provider writes can close the session.
       if (this.active === operation && !this.closing) {
         this.pollingReady = operation
         this.schedulePoll(operation)
@@ -363,6 +396,16 @@ export class LocalPtySession implements TerminalBackendSession {
 
   private readonly onTerminalData = (chunk: Buffer | Uint8Array | string): void => {
     const bytes = typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk
+    if (this.attachListeners.size > 0) {
+      const copy = bytes instanceof Buffer ? bytes : Buffer.from(bytes)
+      for (const listener of this.attachListeners) {
+        try {
+          listener(copy)
+        } catch (_attachListenerFailure) {
+          // UI observers must not break the PTY decode path.
+        }
+      }
+    }
     this.onData(this.decoder.decode(bytes, { stream: true }))
   }
 
@@ -470,7 +513,6 @@ export class LocalPtySession implements TerminalBackendSession {
       this.polling = false
       const active = this.active
       // Awaited provider inspection can clear or replace the active send despite static analysis.
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- awaited inspection can replace the active send.
       if (active !== undefined && this.pollingReady === active) this.schedulePoll(active)
     }
   }
@@ -560,6 +602,7 @@ export class LocalPtySession implements TerminalBackendSession {
     this.terminal.output.off('data', this.onTerminalData)
     this.terminal.output.off('end', this.onTerminalEnd)
     this.terminal.output.off('error', this.onTerminalError)
+    this.attachListeners.clear()
     if (this.transportFailure !== undefined) throw this.transportFailure
   }
 }

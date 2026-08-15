@@ -97,6 +97,19 @@ export type MuxFrame =
    */
   | { type: 'session/jobs'; sessionId: SessionId; jobs: JobView[] }
   /**
+   * One base64 chunk of raw PTY stdout/stderr merged bytes for an interactive
+   * panel attach. Process-local only — never persisted into the session log.
+   * `overrun` marks that prior chunks were dropped because the client fell behind.
+   */
+  | {
+    type: 'session/terminal-chunk'
+    sessionId: SessionId
+    terminalSessionId: string
+    seq: number
+    dataBase64: string
+    overrun?: true
+  }
+  /**
    * One projection unit's finished value changed (session-projection RFC).
    * Live push state, never logged — replay recomputes on the host (the
    * tool-view posture). `value` is the unit's schema-validated view output;

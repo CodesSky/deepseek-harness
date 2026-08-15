@@ -102,7 +102,7 @@ export interface SettingsPluginsTabOwnerProps {
 
 /** Owner share of the trigger content seat: the sidebar column state. */
 export interface SettingsTriggerOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail, icon only). */
+  /** Whether the sidebar renders wide content (false = column hidden). */
   wide: boolean
 }
 

@@ -129,6 +129,20 @@ function scriptedApi(overrides: {
       ...overrides.llm,
     },
     events: { mux: () => empty<MuxFrame>(), host: () => empty<HostFrame>(), ...overrides.events },
+    terminals: {
+      open: r => ok(r, {
+        sessionId: sid('__dsh_user_shell__'),
+        terminalSessionId: 'pty-1',
+        name: 'zsh',
+        type: 'user-shell',
+      }),
+      list: r => ok(r, { sessions: [] }),
+      attach: r => ok(r, { attached: true as const }),
+      detach: r => ok(r, { detached: true as const }),
+      write: r => ok(r, { ok: true as const }),
+      resize: r => ok(r, { ok: true as const }),
+      close: r => ok(r, { closed: true as const }),
+    },
     respond: overrides.respond ?? (() => Promise.resolve({ accepted: false as const, reason: 'not-pending' as const })),
     downloads: { sessionLog: async () => new Response('stub', { status: 404 }) },
   }

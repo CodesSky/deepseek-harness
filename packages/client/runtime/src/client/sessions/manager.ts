@@ -147,6 +147,10 @@ export class SessionManager {
    * is stored as an absent key, so absence and `[]` are one representation.
    */
   private readonly jobsBySession = new Map<SessionId, readonly JobView[]>()
+  /** Live interactive PTY chunk listeners; bytes are never retained here. */
+  private readonly terminalChunkListeners = new Set<
+    (frame: Extract<MuxFrame, { type: 'session/terminal-chunk' }>) => void
+  >()
 
   private selected: SessionId | undefined
 
@@ -675,6 +679,19 @@ export class SessionManager {
   // ---- ConnectionController sinks (wired by boot) ----
 
   /**
+   * Subscribe to interactive PTY chunk frames. Listeners must not retain raw
+   * bytes beyond display; the Host never logs them into the session event log.
+   * @param listener - receives each session/terminal-chunk frame.
+   * @returns disposer that removes exactly this listener.
+   */
+  onTerminalChunk(
+    listener: (frame: Extract<MuxFrame, { type: 'session/terminal-chunk' }>) => void,
+  ): () => void {
+    this.terminalChunkListeners.add(listener)
+    return () => { this.terminalChunkListeners.delete(listener) }
+  }
+
+  /**
    * Mux frame entry: sessionId-bearing frames go only to instantiated sessions
    * (no lazy build; non-pending frames for uninstantiated sessions drop —
    * history backfills them on open).
@@ -709,6 +726,16 @@ export class SessionManager {
       if (frame.jobs.length === 0) this.jobsBySession.delete(frame.sessionId)
       else this.jobsBySession.set(frame.sessionId, frame.jobs)
       this.notifier.markDirty()
+      return
+    }
+    if (frame.type === 'session/terminal-chunk') {
+      for (const listener of this.terminalChunkListeners) {
+        try {
+          listener(frame)
+        } catch (_terminalChunkListenerFailure) {
+          // UI observers must not break mux delivery.
+        }
+      }
       return
     }
     if (frame.type === 'session/subscribed') {

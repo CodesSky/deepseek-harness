@@ -64,6 +64,7 @@ describe('Tooltip', () => {
     const bubble = screen.getByRole('tooltip')
     expect(bubble.textContent).toBe('Open sidebar')
     expect(bubble.getAttribute('data-side')).toBe('right')
+    expect(bubble.parentElement).toBe(document.body)
     // jsdom rects are all-zero: right placement lands at the +10 gutter, then
     // the zero-width measured rect clamps to the 12px edge margin (10 + 12).
     expect(bubble.style.left).toBe('22px')

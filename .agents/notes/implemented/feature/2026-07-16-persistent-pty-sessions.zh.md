@@ -98,7 +98,9 @@ teardown 独立报告顶层进程退出与存活进程清理。PTY 会话不会�
 
 ### 组合与推行
 
-示例组合保持 opt-in，并采用安全默认值：
+随附编码 preset 在 entry-local `terminals` realm 中挂载三包 PTY 栈：`apps/cli/config/agent-presets/{standard,code,cordis}/agent.cordis.yml`。在 ConPTY 后端交付前，该组在 Windows 上禁用。`minimal` 继续使用单一持久 `bash` 工具（`dsh-tool-bash-persistent`），而不是六工具集。一次性 `bash`／`pwsh` 仍是有界命令的默认路径。
+
+专用示例 overlay（`examples/*/pty.cordis*.yml`）仍可用于聚焦的 ACP 与 headless 快照覆盖。不经由上述 preset、但仍需要 PTY 的组合可继续挂载：
 
 ```yaml
 plugins:
@@ -126,15 +128,19 @@ plugins:
       maxResultBytes: 262144
 ```
 
-包提供简洁的工具指引，说明持久状态、owner 隔离、不确定的 idle 结果、清理，以及无需交互时优先使用现有一次性工具。已发布的基础示例不挂载 PTY：PTY 仅通过专用组合 opt-in，而 ACP（Agent Client Protocol）与 headless 快照 overlay 会对其进行验证。`dsh-tool-terminal` 实例一旦启用，6 个工具和 `run_in_background` 就会默认启用；部署可通过配置仅禁用后台参数。
+包提供简洁的工具指引，说明持久状态、owner 隔离、不确定的 idle 结果、清理，以及无需交互时优先使用现有一次性工具。`dsh-tool-terminal` 实例一旦启用，6 个工具和 `run_in_background` 就会默认启用；部署可通过配置仅禁用后台参数。ACP 自动化不另行广告终端协议面；模型访问在组合挂载这六工具时通过它们进行。
 
 ### 推迟的工作
 
-- 全屏 TUI 支持、命名按键序列、BEL 中断、终端 resize 工具和 alternate-screen 快照需要另行验证面向模型的约定。
+- 全屏 TUI 支持、命名按键序列、BEL 中断、面向模型的终端 resize 工具和 alternate-screen 快照需要另行验证面向模型的约定。
 - 声明式 per-agent 启动需要 agent-setup 组合点；仍然禁止插件加载期全局会话。
 - harness 进程丢失后的会话恢复需要进程外 owner 和版本化协议。
 - 网络出口策略与外部副作用回滚超出 PTY 范围，继续作为独立安全工作。
 - Windows/ConPTY 支持需要具备 Windows 原生进程所有权与信号语义的后端。
+
+### 交互式 Web 面板
+
+所有者围栏 seam 还暴露 `attach`／`writeRaw`／`resize` 供产品 UI 使用。Host `terminal.*` 一元方法与 `session/terminal-chunk` mux 帧向 `@deepseek-ai/dsh-client-ui-terminal` 投递原始字节，且不把这些字节写入 session 事件日志。见[交互式 Web 终端面板](./2026-08-14-interactive-web-terminal-panel.md)。
 
 ## 备选方案
 

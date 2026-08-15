@@ -2,12 +2,14 @@
  * Shared tsdown preset for UI plugin client bundles. Emits a closure-factory
  * artifact: the bundle calls window.__ModuleLoader__.load({id, factory})
  * and resolves externals through the injected require (loader module table —
- * cordis DI entities, no globals, no import map). CSS Modules are compiled by
- * lightningcss inside the bundle: importing `x.module.css` yields the
- * hashed class map, and the css text auto-injects a <style data-plugin="<id>">
- * tag at factory execution (the loader removes plugin-owned tags on unload).
- * The virtual loader registers each real stylesheet as a watch dependency.
+ * cordis DI entities, no globals, no import map). Stylesheets are compiled by
+ * lightningcss inside the bundle: importing `x.module.css` yields the hashed
+ * class map, and plain `.css` side-effect imports (e.g. vendor themes) inject
+ * only; both auto-inject a <style data-plugin="<id>"> tag at factory
+ * execution (the loader removes plugin-owned tags on unload). The virtual
+ * loader registers each real stylesheet as a watch dependency.
  */
+import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, relative, resolve as resolvePath, sep } from 'node:path'
@@ -226,8 +228,8 @@ function clientConfig(id: string, entry: string): UserConfig {
     }, {
       name: 'dsh-css-modules-inline',
       resolveId(source: string, importer: string | undefined) {
-        if (!source.endsWith('.module.css')) return null
-        const abs = importer !== undefined ? sourceAssetPath(source, importer) : source
+        if (!source.endsWith('.css')) return null
+        const abs = resolveStylesheetPath(source, importer)
         return CSS_VIRTUAL_PREFIX + abs + CSS_VIRTUAL_SUFFIX
       },
       async load(virtualId: string) {
@@ -236,15 +238,18 @@ function clientConfig(id: string, entry: string): UserConfig {
         // The virtual id otherwise hides the physical stylesheet from Rolldown's watch graph.
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
+        const cssModule = fileId.endsWith('.module.css')
         const { code, exports: cssExports } = transform({
           filename: fileId,
           code: source,
-          cssModules: { pattern: '[hash]_[local]' },
+          ...(cssModule ? { cssModules: { pattern: '[hash]_[local]' } } : {}),
           minify: true,
         })
         const classMap: Record<string, string> = {}
-        for (const [local, exp] of Object.entries(cssExports ?? {})) classMap[local] = exp.name
-        // One <style data-plugin> per module file; idempotent under re-evaluation.
+        if (cssModule) {
+          for (const [local, exp] of Object.entries(cssExports ?? {})) classMap[local] = exp.name
+        }
+        // One <style data-plugin> per stylesheet; idempotent under re-evaluation.
         return [
           `const css = ${JSON.stringify(code.toString())};`,
           `const tagId = ${JSON.stringify(`${id}/${basename(fileId)}`)};`,
@@ -255,7 +260,7 @@ function clientConfig(id: string, entry: string): UserConfig {
           '  tag.textContent = css;',
           '  document.head.appendChild(tag);',
           '}',
-          `export default ${JSON.stringify(classMap)};`,
+          cssModule ? `export default ${JSON.stringify(classMap)};` : 'export {};',
         ].join('\n')
       },
     }],
@@ -281,4 +286,22 @@ function sourceAssetPath(source: string, importer: string): string {
   const boundary = emitted.indexOf(marker)
   if (boundary < 0) return emitted
   return resolvePath(emitted.slice(0, boundary), 'src', emitted.slice(boundary + marker.length))
+}
+
+/**
+ * Resolve a stylesheet specifier to an absolute path for the CSS virtual loader.
+ * Relative imports rebase through {@link sourceAssetPath}; bare package CSS
+ * (e.g. `@xterm/xterm/css/xterm.css`) resolves from the importer via Node.
+ * @param source - import specifier ending in `.css`.
+ * @param importer - absolute path of the importing module, when known.
+ * @returns absolute filesystem path of the stylesheet.
+ */
+function resolveStylesheetPath(source: string, importer: string | undefined): string {
+  if (source.startsWith('.') || source.startsWith('/')) {
+    return importer !== undefined ? sourceAssetPath(source, importer) : source
+  }
+  if (importer === undefined) {
+    throw new Error(`client css: cannot resolve bare specifier "${source}" without an importer`)
+  }
+  return createRequire(importer).resolve(source)
 }

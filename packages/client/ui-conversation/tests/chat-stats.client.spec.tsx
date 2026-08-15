@@ -214,9 +214,9 @@ describe('StatsLine', () => {
     const view = render(<StatsLine {...props(source)} />)
     fireEvent.mouseEnter(view.container.firstElementChild!)
     act(() => { vi.advanceTimersByTime(499) })
-    expect(view.container.querySelector('[role="tooltip"]')).toBeNull()
+    expect(document.body.querySelector('[role="tooltip"]')).toBeNull()
     act(() => { vi.advanceTimersByTime(1) })
-    expect(view.container.querySelector('[role="tooltip"]')?.textContent)
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent)
       .toBe('1 turns · 1 steps | Cache hit 90% | Input 100 tok · Output 5 tok')
   })
 
@@ -226,7 +226,7 @@ describe('StatsLine', () => {
     const view = render(<StatsLine {...props(source)} />)
     fireEvent.mouseEnter(view.container.firstElementChild!)
     act(() => { vi.advanceTimersByTime(500) })
-    expect(view.container.querySelector('[role="tooltip"]')).toBeNull()
+    expect(document.body.querySelector('[role="tooltip"]')).toBeNull()
   })
 
   it('renders window latency and throughput beside the wall-time group', () => {

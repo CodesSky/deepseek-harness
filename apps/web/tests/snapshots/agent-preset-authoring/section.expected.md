@@ -23,7 +23,7 @@
   - list:
     - listitem:
       - 'button "当前使用: 标准模式" [disabled] [pressed]':
-        - text: 标准模式 内置 当前使用 功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。
+        - text: 标准模式 内置 当前使用 功能完整的编码 Agent，支持文件编辑、一次性 Shell、持久终端（PTY）、文件与网页检索、Skills、计划、目标、子代理和工作流。
         - code: standard
       - 'button "查看: 标准模式"':
         - img
@@ -33,7 +33,7 @@
         - text: 复制
     - listitem:
       - 'button "设为默认: PTC 模式"':
-        - text: PTC 模式 内置 具备标准模式的全部能力，并通过 Code Mode SDK 呈现工具，让模型用一个 TypeScript 程序组合多步操作。
+        - text: PTC 模式 内置 具备标准模式的全部能力（含持久终端 PTY），并通过 Code Mode SDK 呈现工具，让模型用一个 TypeScript 程序组合多步操作。
         - code: code
       - 'button "查看: PTC 模式"':
         - img
@@ -53,7 +53,7 @@
         - text: 复制
     - listitem:
       - 'button "设为默认: 创造模式"':
-        - text: 创造模式 内置 用于创建自定义 Agent preset：具备标准模式的全部能力，并提供运行时检查、插件实验和 preset 创作指导。
+        - text: 创造模式 内置 用于创建自定义 Agent preset：具备标准模式的全部能力（含持久终端 PTY），并提供运行时检查、插件实验和 preset 创作指导。
         - code: cordis
       - 'button "查看: 创造模式"':
         - img

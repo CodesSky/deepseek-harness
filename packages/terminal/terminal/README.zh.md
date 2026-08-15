@@ -14,6 +14,10 @@
 - `hasOwnerActivity(owner)` 覆盖从尚未发布的设置到最终关闭的全过程，使生命周期策略能精确限制对应所有者，不受发布竞态影响。
 - 成功的 spawn 会发布一个 `TerminalSessionId`。可选的 `name` 只是所有者本地的显示元数据，绝不代表权限。
 - 一个会话最多接受一个活跃的发送操作。读取和信号操作可以观察该发送；在当前操作结算前，另一项发送会失败。
+- `attach(listener)` 为非独占订阅，不占用发送预留；UI 消费方可以在模型 send 活跃期间观察原始字节。
+- `writeRaw(data)` 写入且不启动就绪等待，并允许与活跃模型 send 并存；调用方接受与该 send 的干扰。
+- `resize({ cols, rows })` 通过 subprocess 终端句柄更新实时 PTY 几何。
+- attach 的原始字节保持进程本地，从不写入 session 事件日志。
 - `TerminalSendResult.waitReason` 与 `sessionStatus` 相互独立。`session_exit` 描述顶层 PTY 进程，而不是任意前台命令。
 - `kill()` 与 dispose 只会在后端捕获的进程树完全停稳后完成。清理失败会以拒绝结束，而非声称成功；同时它会清除匹配的后端和注册表限制，使后续关闭能够重试，且不会干扰较新的尝试。
 

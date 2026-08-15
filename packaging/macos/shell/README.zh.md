@@ -8,6 +8,8 @@ crate 启用 Tauri `custom-protocol`，使 `cargo build --release` **不会**设
 
 非嵌入式 `dsh web` origin 的 HTTP(S) 链接经 `on_navigation` / `on_new_window` 与 `tauri-plugin-opener` 在系统浏览器中打开（markdown 使用 `target="_blank"`）。仅打开 `http`/`https`；web UI origin 留在 WebView（[说明](../../../.agents/notes/implemented/bug-fix/2026-08-14-macos-desktop-http-links-system-browser.md)）。
 
+主窗口使用 macOS overlay 标题栏（`TitleBarStyle::Overlay`、隐藏标题、原生红绿灯）。`navigate()` 到 `127.0.0.1` 后，initialization script 会打上 `html[data-dsh-desktop=macos]`，供 web UI 把 chrome 钉在灯旁并盖上 `data-tauri-drag-region`；`dsh web` 与 `--browser-launcher` 不会收到该标记（[说明](../../../.agents/notes/implemented/feature/2026-08-15-macos-immersive-title-bar.md)）。
+
 ```sh
 pnpm run build:macos-desktop-shell
 # Local smoke without assembling a full .app (uses the existing closure tree):

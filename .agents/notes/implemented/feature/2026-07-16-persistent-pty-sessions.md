@@ -98,7 +98,9 @@ Teardown reports top-level exit and survivor cleanup independently. The PTY sess
 
 ### Composition and rollout
 
-The example composition remains opt-in and safe by default:
+Shipped coding presets mount the three-package PTY stack inside an entry-local `terminals` realm: `apps/cli/config/agent-presets/{standard,code,cordis}/agent.cordis.yml`. The group is disabled on Windows until a ConPTY backend ships. `minimal` keeps its single `bash` persistent tool (`dsh-tool-bash-persistent`) rather than the six-tool set. One-shot `bash`/`pwsh` remain the default for bounded commands.
+
+Dedicated example overlays (`examples/*/pty.cordis*.yml`) remain available for focused ACP and headless snapshot coverage. A composition that needs PTY without those presets still mounts:
 
 ```yaml
 plugins:
@@ -126,15 +128,19 @@ plugins:
       maxResultBytes: 262144
 ```
 
-The package ships concise tool guidance explaining persistent state, owner isolation, uncertain idle results, cleanup, and the preference for existing one-shot tools when interaction is unnecessary. It does not mount PTY in the base shipped examples: PTY is opt-in through the dedicated composition, while ACP and headless snapshot overlays exercise it. Within an enabled `dsh-tool-terminal` instance, the six tools and `run_in_background` are enabled by default; deployments may disable only the background argument with config.
+The package ships concise tool guidance explaining persistent state, owner isolation, uncertain idle results, cleanup, and the preference for existing one-shot tools when interaction is unnecessary. Within an enabled `dsh-tool-terminal` instance, the six tools and `run_in_background` are enabled by default; deployments may disable only the background argument with config. ACP automation does not advertise a separate terminal protocol surface; model access is through the six tools when the composition mounts them.
 
 ### Deferred work
 
-- Full-screen TUI support, named key sequences, BEL interruption, terminal resize tools, and alternate-screen snapshots require a separately proven model-facing contract.
+- Full-screen TUI support, named key sequences, BEL interruption, model-facing terminal resize tools, and alternate-screen snapshots require a separately proven model-facing contract.
 - Declarative per-agent startup requires an agent-setup composition point; plugin-load global sessions remain prohibited.
 - Session restoration across harness-process loss requires an out-of-process owner and a versioned protocol.
 - Network-egress policy and rollback of external side effects are broader than PTY and remain separate security work.
 - Windows/ConPTY support requires a backend with Windows-native process ownership and signaling semantics.
+
+### Interactive Web panel
+
+The owner-fenced seam also exposes `attach` / `writeRaw` / `resize` for the product UI. Host `terminal.*` unary methods and `session/terminal-chunk` mux frames deliver raw bytes to `@deepseek-ai/dsh-client-ui-terminal` without writing those bytes into the session event log. See [interactive web terminal panel](./2026-08-14-interactive-web-terminal-panel.md).
 
 ## Alternatives considered
 

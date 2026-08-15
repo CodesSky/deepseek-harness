@@ -98,6 +98,8 @@ export interface RpcErrorDetailsMap {
   'subagent-not-resumable': { childSessionId: SessionId }
   'subagent-unauthorized': { childSessionId: SessionId }
   'subagent-delivery-unavailable': { childSessionId: SessionId }
+  /** Interactive PTY panel target is missing, foreign, or the terminal seam is unloaded. */
+  'terminal-unavailable': { sessionId: SessionId; terminalSessionId?: string }
   'internal': {}
 }
 

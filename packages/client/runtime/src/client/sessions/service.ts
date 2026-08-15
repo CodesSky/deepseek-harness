@@ -454,6 +454,17 @@ export class SessionRuntime implements ISessions {
   }
 
   /**
+   * Subscribe to interactive PTY chunk frames from the mux stream.
+   * @param listener - receives each session/terminal-chunk frame.
+   * @returns disposer that removes exactly this listener.
+   */
+  onTerminalChunk(
+    listener: Parameters<SessionManager['onTerminalChunk']>[0],
+  ): () => void {
+    return this.manager.onTerminalChunk(listener)
+  }
+
+  /**
    * Route a Host stream envelope into the Session object layer.
    * @param envelope - validated Host stream envelope.
    */

@@ -1208,3 +1208,37 @@ describe('background-job mirror', () => {
     expect(seen).toHaveBeenCalled()
   })
 })
+
+describe('session/terminal-chunk fan-out', () => {
+  it('delivers frames to onTerminalChunk listeners without touching the session list mirror', () => {
+    const manager = new SessionManager(new FakeApiClient(), fakeRemote())
+    const seen: Array<{ terminalSessionId: string; dataBase64: string }> = []
+    const dispose = manager.onTerminalChunk((frame) => {
+      seen.push({ terminalSessionId: frame.terminalSessionId, dataBase64: frame.dataBase64 })
+    })
+    manager.handleMuxEnvelope({
+      rpcId: 'tc' as never,
+      payload: {
+        type: 'session/terminal-chunk',
+        sessionId: S1,
+        terminalSessionId: 'pty-1',
+        seq: 1,
+        dataBase64: 'aGk=',
+      },
+    })
+    expect(seen).toEqual([{ terminalSessionId: 'pty-1', dataBase64: 'aGk=' }])
+    expect(S1 in manager.getListSnapshot().jobsBySession).toBe(false)
+    dispose()
+    manager.handleMuxEnvelope({
+      rpcId: 'tc2' as never,
+      payload: {
+        type: 'session/terminal-chunk',
+        sessionId: S1,
+        terminalSessionId: 'pty-1',
+        seq: 2,
+        dataBase64: 'eA==',
+      },
+    })
+    expect(seen).toHaveLength(1)
+  })
+})

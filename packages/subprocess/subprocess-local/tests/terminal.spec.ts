@@ -37,6 +37,12 @@ class FakePty {
 
   write(data: string): void { this.writes.push(data) }
 
+  readonly resizes: Array<{ cols: number; rows: number }> = []
+
+  resize(cols: number, rows: number): void {
+    this.resizes.push({ cols, rows })
+  }
+
   kill(signal?: string): void {
     if (this.throwKill) throw new Error('process raced')
     this.kills.push(signal ?? 'SIGHUP')
@@ -173,6 +179,8 @@ describe('LocalTerminalHandle', () => {
     pty.emitData('hello €')
     await handle.write('input\r')
     expect(pty.writes).toEqual(['input\r'])
+    await handle.resize({ cols: 80, rows: 24 })
+    expect(pty.resizes).toEqual([{ cols: 80, rows: 24 }])
     expect(await handle.inspectForeground()).toEqual({ processGroupId: 456, inputWaiting: true })
     expect(await handle.signalForeground('SIGINT')).toBe(456)
     expect(inspector.groups).toEqual([[456, 'SIGINT']])
@@ -194,10 +202,12 @@ describe('LocalTerminalHandle', () => {
     expect(await handle.inspectForeground()).toBeUndefined()
     await expect(handle.signalForeground('SIGTERM')).rejects.toThrow('cannot resolve')
 
+    await expect(handle.resize({ cols: 0, rows: 24 })).rejects.toThrow('cols must be a positive')
     pty.emitExit(3)
     expect(await handle.done).toEqual({ exitCode: 3, signal: null })
     await handle.terminate()
     await expect(handle.write('late')).rejects.toThrow('has exited')
+    await expect(handle.resize({ cols: 80, rows: 24 })).rejects.toThrow('has exited')
   })
 
   it('keeps the shell alive until forced descendants leave', async () => {

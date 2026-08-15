@@ -35,32 +35,57 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.regionArea')?.get('margin-right')).toBe(
       'calc(-1 * var(--dsh-sidebar-inline-padding))',
     )
-    expect(declarations('.collapsed .regionArea')?.get('margin-left')).toBe('0')
-    expect(declarations('.collapsed .regionArea')?.get('padding-left')).toBe('0')
-    expect(declarations('.collapsed .regionArea')?.get('margin-right')).toBe('0')
+    expect(declarations('.collapsed .regionArea')?.get('display')).toBe('none')
+    expect(declarations('.collapsed .footArea')?.get('display')).toBe('none')
   })
 
-  it('moves the four upper controls while the settings seat only fades', () => {
-    const animation = 'rail-in 150ms var(--ds-ease-in-out) backwards'
-    for (const selector of [
-      '.railIn .iconButton',
-      '.railIn .newSession',
-      '.railIn .regionArea',
-    ]) {
-      expect(declarations(selector)?.get('animation')).toBe(animation)
-    }
-    expect(declarations('.railIn .footArea')?.get('animation')).toBe(
-      'rail-fade-in 150ms var(--ds-ease-in-out) backwards',
-    )
-    expect(css).toMatch(
-      /@keyframes rail-in\s*\{\s*from\s*\{\s*opacity: 0;\s*transform: translateX\(49px\);\s*}\s*}/,
-    )
-    expect(css).toMatch(/@keyframes rail-fade-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
+  it('fades fixed chrome in after a live collapse settle', () => {
+    const animation = 'chrome-in 150ms var(--ds-ease-in-out) backwards'
+    expect(declarations('.chromeIn .toggle')?.get('animation')).toBe(animation)
+    expect(declarations('.chromeIn .collapsedNewSession')?.get('animation')).toBe(animation)
+    expect(css).toMatch(/@keyframes chrome-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
   })
 
-  it('gives shell rail controls the same base anchor for their shared translation', () => {
-    expect(declarations('.collapsed .logoRow')?.get('justify-content')).toBe('flex-start')
-    expect(declarations('.collapsed .newSession')?.get('align-self')).toBe('flex-start')
-    expect(declarations('.collapsed .newSession')?.get('width')).toBe('36px')
+  it('pins the panel toggle beside traffic lights under the macOS overlay dataset', () => {
+    const desktop = ":global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen]))"
+    const desktopToggle = declarations(`${desktop} .toggle`)
+    expect(desktopToggle?.get('position')).toBe('fixed')
+    expect(desktopToggle?.get('top')).toBe('12px')
+    expect(desktopToggle?.get('left')).toBe('80px')
+    expect(desktopToggle?.get('z-index')).toBe('30')
+    expect(desktopToggle?.get('width')).toBe('28px')
+    expect(desktopToggle?.get('height')).toBe('28px')
+    expect(declarations(`${desktop} .toggle .panelIcon`)?.get('width')).toBe('16px')
+    expect(declarations(`${desktop} .toggle .panelIcon`)?.get('height')).toBe('16px')
+    expect(declarations(`${desktop} .collapsed .toggle`)?.get('left')).toBe('80px')
+    expect(declarations(`${desktop} .collapsed .collapsedNewSession`)?.get('left')).toBe('116px')
+    expect(declarations(`${desktop} .fading .toggle`)?.get('left')).toBe('80px')
+    expect(declarations(`${desktop} .chromeIn .toggle`)?.get('animation')).toBe('none')
+    expect(css).not.toMatch(/canOpenPath/)
+    expect(css).not.toMatch(/78px/)
+  })
+
+  it('pins collapsed chrome top-left on every channel and keeps logoRow visible during fade', () => {
+    expect(declarations('.fading .toggle')?.get('position')).toBe('fixed')
+    expect(declarations('.fading .toggle')?.get('left')).toBe('12px')
+    expect(declarations('.collapsed .toggle')?.get('position')).toBe('fixed')
+    expect(declarations('.collapsed .toggle')?.get('left')).toBe('12px')
+    expect(declarations('.collapsed .collapsedNewSession')?.get('position')).toBe('fixed')
+    expect(declarations('.collapsed .collapsedNewSession')?.get('left')).toBe('48px')
+    expect(declarations('.fading > .logoRow')?.get('opacity')).toBe('1')
+  })
+
+  it('keeps the logoRow drag spacer on the traffic-light mid-line', () => {
+    // root pad 6 + height 40 / 2 = 26, matching TRAFFIC_LIGHT_Y=28 painted mid-line.
+    expect(declarations('.logoRow')?.get('height')).toBe('40px')
+    expect(declarations('.logoRow')?.get('padding')).toBe('0 0 0 4px')
+    expect(declarations('.logoRow')?.get('align-items')).toBe('center')
+    // Fixed macOS toggle escapes the row; hidden would clip it.
+    expect(declarations('.logoRow')?.get('overflow')).toBe('visible')
+  })
+
+  it('clears the collapsed column fill so no rail seam remains', () => {
+    expect(declarations('.root.collapsed')?.get('padding')).toBe('0')
+    expect(declarations('.root.collapsed')?.get('background')).toBe('transparent')
   })
 })

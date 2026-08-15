@@ -41,24 +41,24 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
  * boundary. Business data and actions arrive through the region's own inject.
  */
 export interface SidebarSectionOwnerProps {
-  /** Shell fold-state output: wide renders the full browser, rail the icon column. */
+  /** Shell fold-state output: wide renders the full browser; false hides the column. */
   wide: boolean
-  /** Rail icons request expansion; the browser rides the wide flip for focus. */
+  /** Occupants request expansion when the column is hidden; the browser rides the wide flip for focus. */
   expandSidebar: () => void
 }
 
 /**
  * Owner share of the sidebar settings seat: the column display state the
- * occupant's trigger row must render against (wide row vs rail icon).
+ * occupant's trigger row must render against (wide row vs hidden column).
  */
 export interface SidebarSettingsOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail). */
+  /** Whether the sidebar renders wide content (false = column hidden). */
   wide: boolean
 }
 
 /** Owner share of an action rendered beside Settings at the sidebar foot. */
 export interface SidebarFooterActionOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail). */
+  /** Whether the sidebar renders wide content (false = column hidden). */
   wide: boolean
 }
 

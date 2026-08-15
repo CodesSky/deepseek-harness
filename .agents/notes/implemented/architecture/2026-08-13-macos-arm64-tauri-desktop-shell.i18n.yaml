@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-13-macos-arm64-tauri-desktop-shell.md
-2026-08-13-macos-arm64-tauri-desktop-shell.md: 0b1e3f2ac864aa4c89241d78375cdaba3717b9a1
-2026-08-13-macos-arm64-tauri-desktop-shell.zh.md: d56f8e2c26eb9cd668b4fad16f687077b8f3382e
+2026-08-13-macos-arm64-tauri-desktop-shell.md: c782786349f5343bbd2acdf7aff9f533b6c533bb
+2026-08-13-macos-arm64-tauri-desktop-shell.zh.md: 7de46abaff35fddde5ae1c9c1e7ad0f4afa8d45a

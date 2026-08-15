@@ -1,16 +1,17 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`sidebar shell snapshots > renders the collapsed rail after the crossfade settles, in place 1`] = `
+exports[`sidebar shell snapshots > renders collapsed top-bar chrome after the crossfade settles, in place 1`] = `
 <div
   data-slot="sidebar"
   style="display: contents;"
 >
   <div
-    class="root collapsed railIn quietBars"
+    class="root collapsed chromeIn quietBars"
     style=""
   >
     <div
       class="logoRow"
+      data-dsh-drag-chrome="deep"
     >
       <button
         aria-label="Open sidebar"
@@ -18,39 +19,30 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         type="button"
       >
         <svg
-          aria-hidden="true"
-          class="railFish"
-          data-content="965fe321"
-          fill="none"
-          height="17.6580310880829"
-          viewBox="0 0 23.16 17.04"
-          width="24"
-        />
-        <svg
           class="panelIcon"
-          data-content="35f95b0c"
+          data-content="99141737"
           fill="none"
-          height="18"
+          height="16"
           viewBox="0 0 16 16"
-          width="18"
+          width="16"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </button>
+      <button
+        aria-label="New session"
+        class="iconButton collapsedNewSession"
+        type="button"
+      >
+        <svg
+          data-content="c0ce4dcc"
+          fill="none"
+          height="16"
+          viewBox="0 0 16 16"
+          width="16"
           xmlns="http://www.w3.org/2000/svg"
         />
       </button>
     </div>
-    <button
-      aria-label="New session"
-      class="newSession"
-      type="button"
-    >
-      <svg
-        data-content="c0ce4dcc"
-        fill="none"
-        height="18"
-        viewBox="0 0 16 16"
-        width="18"
-        xmlns="http://www.w3.org/2000/svg"
-      />
-    </button>
     <div
       class="regionArea"
     >
@@ -83,7 +75,7 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
 </div>
 `;
 
-exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsule, empty holes) 1`] = `
+exports[`sidebar shell snapshots > renders the expanded column (toggle, capsule, empty holes) 1`] = `
 <div
   data-slot="sidebar"
   style="display: contents;"
@@ -94,21 +86,8 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
   >
     <div
       class="logoRow"
+      data-dsh-drag-chrome="deep"
     >
-      <button
-        aria-label="New session"
-        class="brand wide"
-        type="button"
-      >
-        <svg
-          aria-hidden="true"
-          data-content="951274b9"
-          fill="none"
-          height="24"
-          viewBox="0 0 182 24"
-          width="182"
-        />
-      </button>
       <button
         aria-label="Collapse sidebar"
         class="iconButton toggle"
@@ -116,7 +95,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       >
         <svg
           class="panelIcon"
-          data-content="35f95b0c"
+          data-content="5b53c8b1"
           fill="none"
           height="16"
           viewBox="0 0 16 16"
@@ -187,21 +166,8 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
   >
     <div
       class="logoRow"
+      data-dsh-drag-chrome="deep"
     >
-      <button
-        aria-label="新建会话"
-        class="brand wide"
-        type="button"
-      >
-        <svg
-          aria-hidden="true"
-          data-content="951274b9"
-          fill="none"
-          height="24"
-          viewBox="0 0 182 24"
-          width="182"
-        />
-      </button>
       <button
         aria-label="收起侧边栏"
         class="iconButton toggle"
@@ -209,7 +175,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       >
         <svg
           class="panelIcon"
-          data-content="35f95b0c"
+          data-content="5b53c8b1"
           fill="none"
           height="16"
           viewBox="0 0 16 16"

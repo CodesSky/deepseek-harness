@@ -98,6 +98,7 @@ describe.skipIf(!process.env.E2B_API_KEY)('E2B live Loader composition', () => {
       }
       const backend = new BashTerminalBackend(ctx, {
         backendType: 'shell', shellPath: '/bin/bash', shellArgs: ['--noprofile', '--norc', '-i'],
+        profile: 'controlled',
         rows: 24, cols: 80,
         scrollbackLines: 100, scrollbackMaxBytes: 65_536, maxReadBytes: 16_384,
         pollIntervalMs: 25, exactProbeAfterMs: 150, idleSilenceMs: 1_000,

@@ -4,6 +4,7 @@
    a 2px active bar. */
 
 .root {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -28,8 +29,18 @@
 .header {
   position: relative;
   flex: none;
-  padding: 12px 28px 0 20px;
+  /* 10px top + 32px titleRow centers utilities on the traffic-light mid-line
+     (center 26), matching sidebar panel toggle and hero Terminal chrome. */
+  padding: 10px 28px 0 20px;
   border-bottom: 1px solid transparent;
+}
+
+/* Collapsed sidebar: conversation column is flush to the window left, so the
+   header must clear AppFrame's --dsh-collapsed-chrome-inset (toggle + New
+   Session, plus traffic lights on macOS overlay). Expanded sidebar already
+   covers that chrome; this selector is absent then. */
+:global([data-sidebar-collapsed]) .header {
+  padding-left: max(20px, var(--dsh-collapsed-chrome-inset, 0px));
 }
 
 .header::after {
@@ -42,6 +53,29 @@
   height: 1px;
   background: var(--dsw-alias-border-l2);
   pointer-events: none;
+}
+
+/* Overlay title bar already sits on the app fill; the 1px rule would redraw
+   the native title-bar separator the shell just removed. */
+:global(html[data-dsh-desktop='macos']) .header::after {
+  background: transparent;
+}
+
+/* Hero / settling: empty top of the conversation column is the drag hit
+   target while the session header is display:none. Overlay chrome (z-index
+   20+) stays above this band. */
+.desktopDragBand {
+  display: none;
+}
+
+:global(html[data-dsh-desktop='macos']:not([data-dsh-fullscreen])) .desktopDragBand {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  z-index: 1;
 }
 
 /* Blank hero/settling: keep the strict Session header mounted without taking

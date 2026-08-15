@@ -2,24 +2,27 @@
  * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
  * content freezes at its expanded width (inline style) and fades out in place
  * while the sliding column (AppFrame grid tracks) clips it — nothing reflows
- * mid-slide. At settle the wide-only content unmounts and the four upper
- * controls enter the 56px rail from the same horizontal offset (one icon each,
- * same top-down order) on one fade that ends with the slide. The bottom-pinned
- * settings control only fades. The workspace/session browsing region between
- * the New Session button and the foot is the `sidebar.workspaces` registrant's,
- * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
- * hands them the wide flag (plus an expand request callback for the browser).
+ * mid-slide. At settle the wide-only content unmounts, the column width is zero,
+ * and the panel toggle plus New Session escape as fixed top-bar chrome
+ * (traffic-light peers on macOS; top-left on browser). Workspace/settings
+ * seats stay mounted under the column for state but are not painted while
+ * collapsed — expand restores them. The workspace/session browsing region
+ * between the New Session button and the foot is the `sidebar.workspaces`
+ * registrant's, and the foot holds `sidebar.settings` plus
+ * `sidebar.footer.action`; the shell hands them the wide flag (plus an expand
+ * request callback for the browser).
  *
  * The column also owns whether the scroll regions nested in it draw a
  * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
- * scrollbar indirection away while it is elsewhere, so a list the user is not
- * pointing at carries no bar.
+ * scrollbar indirection away while it is elsewhere, so a list the user is
+ * not pointing at carries no bar.
  */
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  BrandWordmark, FishLogo,
-  IconNewChatOutline16, IconPanelLeftOutline16,
+  IconNewChatOutline16,
+  IconPanelLeftCollapseOutline16,
+  IconPanelLeftExpandOutline16,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
@@ -60,13 +63,13 @@ export function SidebarRoot({
   const wide = !collapsed || !settled
 
   // Freeze the content at its expanded width while it fades out (collapsed
-  // && wide): the sliding column then clips it instead of reflowing it. The
-  // rail layout (.collapsed styles) only applies once the fade settles.
+  // && wide): the sliding column then clips it instead of reflowing it.
+  // Settled collapsed uses zero column width from AppFrame (no inline style).
   const lastWideWidth = useRef(width)
   if (!collapsed) lastWideWidth.current = width
 
-  // Rail-in only crossfades a live collapse: a refresh straight into the
-  // collapsed state renders the rail statically (no delay-hidden icons).
+  // Chrome-in only crossfades a live collapse: a refresh straight into the
+  // collapsed state renders the fixed chrome statically.
   const everWide = useRef(!collapsed)
   if (!collapsed) everWide.current = true
 
@@ -117,7 +120,7 @@ export function SidebarRoot({
     <div
       ref={column}
       className={clsx(
-        css.root, !wide && css.collapsed, !wide && everWide.current && css.railIn,
+        css.root, !wide && css.collapsed, !wide && everWide.current && css.chromeIn,
         collapsed && wide && css.fading, !pointerInside && css.quietBars,
       )}
       style={wide ? { width: collapsed ? lastWideWidth.current : width } : undefined}
@@ -127,50 +130,60 @@ export function SidebarRoot({
       }}
       onPointerLeave={() => { armLinger() }}
     >
-      <div className={css.logoRow}>
-        {/* Expanded, the wordmark doubles as a New Session shortcut; the
-            collapsed rail's logo is the expand toggle below instead. */}
-        {wide && (
-          <button
-            type="button"
-            className={clsx(css.brand, css.wide)}
-            aria-label={t('session.new.label')}
-            onClick={() => { startSession() }}
-          >
-            <BrandWordmark />
-          </button>
-        )}
-        {/* Rail resting state is the whale mark; hovering swaps in the panel
-            icon (the expand affordance, figma sidebar-hover flow). */}
-        <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
+      <div className={css.logoRow} data-dsh-drag-chrome="deep">
+        {/* Brand wordmark lives top-right beside Terminal chrome (ui-terminal).
+            Expanded browser: toggle stays in-flow here. macOS overlay: CSS
+            pins it fixed beside the traffic lights. Collapsed (every channel):
+            toggle + New Session pin as top-bar chrome while the column is 0. */}
+        <Tooltip
+          label={collapsed ? t('toggle.open') : t('toggle.collapse')}
+          side="bottom"
+          delayMs={500}
+        >
           <button
             type="button"
             className={clsx(css.iconButton, css.toggle)}
             aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
             onClick={() => { toggleSidebar() }}
           >
-            {!wide && <FishLogo className={css.railFish} size={24} />}
-            {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
-            <IconPanelLeftOutline16 className={css.panelIcon} size={wide ? 16 : 18} />
+            {collapsed
+              ? <IconPanelLeftExpandOutline16 className={css.panelIcon} size={16} />
+              : <IconPanelLeftCollapseOutline16 className={css.panelIcon} size={16} />}
           </button>
         </Tooltip>
+        {/* Collapsed only: New Session rides the toggle's right edge so the
+            expanded capsule is not duplicated. */}
+        {!wide && (
+          <Tooltip label={t('session.new.label')} side="bottom" delayMs={500}>
+            <button
+              type="button"
+              className={clsx(css.iconButton, css.collapsedNewSession)}
+              aria-label={t('session.new.label')}
+              onClick={() => { startSession() }}
+            >
+              <IconNewChatOutline16 size={16} />
+            </button>
+          </Tooltip>
+        )}
       </div>
 
-      {/* Expanded, the button carries its own label — tooltip only on the rail. */}
-      <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
-        <button
-          type="button"
-          className={css.newSession}
-          aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
-        >
-          <IconNewChatOutline16 size={wide ? 14 : 18} />
-          {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
-        </button>
-      </Tooltip>
+      {/* Expanded capsule — tooltip only when the label is absent (rail path). */}
+      {wide && (
+        <Tooltip label={t('session.new.label')} side="bottom" delayMs={500} disabled>
+          <button
+            type="button"
+            className={css.newSession}
+            aria-label={t('session.new.label')}
+            onClick={() => { startSession() }}
+          >
+            <IconNewChatOutline16 size={14} />
+            <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>
+          </button>
+        </Tooltip>
+      )}
 
       {/* The browsing region fills the column between the controls and the
-          foot in both states; its rail icon column rides the same slot. */}
+          foot while wide; collapsed keeps the seats mounted but unpainted. */}
       <div className={css.regionArea}>
         {renderSlot('sidebar.workspaces', {
           wide,

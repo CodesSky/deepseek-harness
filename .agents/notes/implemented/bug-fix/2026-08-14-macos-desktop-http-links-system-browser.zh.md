@@ -19,7 +19,7 @@ Status: implemented
 - **`on_new_window`（`target="_blank"`）：** 从不创建第二个 WKWebView；凡 `http`/`https`（含 web UI origin）都在系统浏览器打开，其他 scheme 拒绝且不打开。
 - **拒绝且不打开：** 其他一切 scheme（`javascript:`、`file:`、`mailto:` 等），与 markdown sanitize 仅放行 `http`/`https` 的 authored href 一致。
 - 继续启用 Tauri `custom-protocol`；不重新引入 `cfg(dev)` 的 Dock 图标覆盖。
-- capabilities 仍仅为 `core:default`；前端不获得 JS `openUrl` 面。Rust 处理函数直接调用 opener crate。
+- capabilities 仍只作用于本窗口：`core:default` 加上 overlay 标题栏的 remote 授权（`http://127.0.0.1:*` 上的 `allow-start-dragging`、`allow-is-fullscreen`，[沉浸式标题栏](../feature/2026-08-15-macos-immersive-title-bar.md)）。前端不获得 JS `openUrl` 面。Rust 处理函数直接调用 opener crate。
 
 ## 曾考虑的替代方案
 

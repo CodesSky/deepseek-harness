@@ -222,6 +222,9 @@ class FakeTerminalSandbox {
           }
         }
       },
+      resize: async (_pid: number, _size: { cols: number; rows: number }, options?: { signal?: AbortSignal }): Promise<void> => {
+        options?.signal?.throwIfAborted()
+      },
     },
   } as unknown as Sandbox
 }

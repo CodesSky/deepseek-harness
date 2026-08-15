@@ -286,6 +286,40 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
       mux: (_request, signal) => stream(muxFrames, signal),
       host: (_request, signal) => stream(hostFrames, signal),
     },
+    terminals: {
+      async open(request) {
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              sessionId: '__dsh_user_shell__' as never,
+              terminalSessionId: 'pty-1',
+              name: 'zsh',
+              type: 'user-shell',
+            },
+          },
+        }
+      },
+      async list(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { sessions: [] } } }
+      },
+      async attach(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { attached: true as const } } }
+      },
+      async detach(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { detached: true as const } } }
+      },
+      async write(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { ok: true as const } } }
+      },
+      async resize(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { ok: true as const } } }
+      },
+      async close(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { closed: true as const } } }
+      },
+    },
     async respond(message: ClientResponse): Promise<RpcReceipt> {
       return message.rpcId === 'known' ? { accepted: true } : { accepted: false, reason: 'not-pending' }
     },
@@ -768,20 +802,55 @@ describe('envelope observation', () => {
   })
 })
 
+/** Test client that records the last minted rpcId for scripted JSON replies. */
+class RememberedRpcIdClient extends AbstractApiClient {
+  lastMinted = ''
+  protected override mintRpcId(): ReturnType<AbstractApiClient['mintRpcId']> {
+    const id = super.mintRpcId()
+    this.lastMinted = id
+    return id
+  }
+}
+
+describe('AbstractApiClient terminals face', () => {
+  it('exposes terminal.open and terminal.close unary methods', async () => {
+    class Probe extends RememberedRpcIdClient {
+      urls: string[] = []
+      protected async doFetch(input: URL, init?: RequestInit): Promise<Response> {
+        this.urls.push(input.pathname)
+        const body = init?.body === undefined ? undefined : JSON.parse(String(init.body)) as { rpcId: string }
+        const rpcId = body?.rpcId ?? this.lastMinted
+        const value = input.pathname.endsWith('terminal.open')
+          ? {
+            sessionId: '__dsh_user_shell__',
+            terminalSessionId: 'pty-1',
+            name: 'zsh',
+            type: 'user-shell',
+          }
+          : { closed: true }
+        return Response.json({ type: 'server-response', rpcId, result: { ok: true, value } })
+      }
+    }
+    const probe = new Probe()
+    const opened = await probe.terminals.open({})
+    expect(opened.result.ok).toBe(true)
+    expect(probe.urls).toContain('/api/terminal.open')
+    const closed = await probe.terminals.close({
+      sessionId: '__dsh_user_shell__' as never,
+      terminalSessionId: 'pty-1',
+    })
+    expect(closed.result.ok).toBe(true)
+    expect(probe.urls).toContain('/api/terminal.close')
+  })
+})
+
 describe('resolveBase', () => {
   it('prefers a real location.origin and falls back to the internal authority', async () => {
-    class Probe extends AbstractApiClient {
+    class Probe extends RememberedRpcIdClient {
       urls: string[] = []
       protected async doFetch(input: URL): Promise<Response> {
         this.urls.push(input.href)
         return Response.json({ type: 'server-response', rpcId: this.lastMinted, result: { ok: true, value: { items: [] } } })
-      }
-
-      lastMinted = ''
-      protected override mintRpcId(): ReturnType<AbstractApiClient['mintRpcId']> {
-        const id = super.mintRpcId()
-        this.lastMinted = id
-        return id
       }
     }
     const probe = new Probe()

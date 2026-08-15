@@ -61,6 +61,7 @@ function mountFrame() {
     if (key === 'sidebar') return <div data-testid="sidebar-content" />
     if (key === 'conversation') return <div data-testid="center-content" />
     if (key === 'details') return <div data-testid="details-content" />
+    if (key === 'shell.dock') return <div data-testid="dock-content" />
     if (key === 'conversation.empty') return <div data-testid="empty-content" />
     return <div data-testid="other-content" />
   }) as AppFrameProps['renderSlot']
@@ -142,16 +143,29 @@ describe('AppFrame', () => {
     expect(tracks(frame)).toEqual([280, 0])
   })
 
+  it('renders shell.dock under the main columns beside a full-height sidebar track', () => {
+    const { frame, getByTestId } = mountFrame()
+    const dockHost = frame.querySelector('[data-shell-dock]')
+    expect(dockHost).not.toBeNull()
+    expect(getByTestId('dock-content')).toBeTruthy()
+    // Sidebar remains a frame child that spans both grid rows (CSS grid-row: 1 / -1).
+    expect(frame.children[0]?.contains(getByTestId('sidebar-content'))).toBe(true)
+    expect(dockHost!.contains(getByTestId('dock-content'))).toBe(true)
+  })
+
   it('renders the session pair with empty owner shares (sessionId is framework-standard)', () => {
     const { slotCalls, getByTestId } = mountFrame()
     expect(getByTestId('center-content')).toBeTruthy()
     expect(getByTestId('details-content')).toBeTruthy()
+    expect(getByTestId('dock-content')).toBeTruthy()
     const keys = slotCalls.map(c => c.key)
     expect(keys).toContain('conversation')
     expect(keys).toContain('details')
+    expect(keys).toContain('shell.dock')
     expect(keys).not.toContain('conversation.empty')
     expect(slotCalls.find(c => c.key === 'conversation')!.props).toEqual({})
     expect(slotCalls.find(c => c.key === 'details')!.props).toEqual({})
+    expect(slotCalls.find(c => c.key === 'shell.dock')!.props).toEqual({})
   })
 
   it('keeps the conversation slot mounted while no session is current', () => {
@@ -251,7 +265,7 @@ describe('AppFrame', () => {
     expect(frame.hasAttribute('data-details-collapsed')).toBe(true)
   })
 
-  it('closed sidebar keeps its compact rail with mounted slot content and collapsed owner props', () => {
+  it('closed sidebar hides the column with mounted slot content and collapsed owner props', () => {
     const { frame, instance, slotCalls, getByTestId } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)).toEqual([SIDEBAR_COLLAPSED, 0])

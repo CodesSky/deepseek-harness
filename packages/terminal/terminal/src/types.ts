@@ -130,6 +130,17 @@ export interface TerminalSignalResult {
   targetPgid: number
 }
 
+/** Request to change one live PTY's geometry. */
+export interface TerminalResizeRequest {
+  /** Positive column count for the PTY driver. */
+  cols: number
+  /** Positive row count for the PTY driver. */
+  rows: number
+}
+
+/** One raw PTY output chunk delivered to a non-exclusive attach observer. */
+export type TerminalAttachListener = (chunk: Uint8Array) => void
+
 /** Owner-visible summary of one published PTY session. */
 export interface TerminalSessionSnapshot {
   /** Registry-minted identity used by every operation. */
@@ -152,6 +163,23 @@ export interface TerminalBackendSession {
   readonly pid?: number
   /** Start one exclusive send operation. */
   startSend(request: TerminalSendRequest): TerminalSendOperation
+  /**
+   * Subscribe to raw PTY output without taking the exclusive send reservation.
+   * @param listener - receives every subsequent output chunk until disposed.
+   * @returns disposer that removes exactly this listener.
+   */
+  attach(listener: TerminalAttachListener): () => void
+  /**
+   * Write bytes without starting a readiness wait.
+   * Concurrent with an active model send; the caller accepts interference.
+   * @param data - UTF-8 text or raw bytes for the PTY input.
+   */
+  writeRaw(data: string | Uint8Array): Promise<void>
+  /**
+   * Resize the live PTY geometry.
+   * @param size - positive cols and rows for the terminal driver.
+   */
+  resize(size: TerminalResizeRequest): Promise<void>
   /** Read one bounded page from retained scrollback. */
   read(request: TerminalReadRequest): TerminalReadResult
   /** Signal the verified foreground process group. */

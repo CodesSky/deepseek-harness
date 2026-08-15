@@ -19,7 +19,7 @@ Handle outbound links in the **desktop shell**, not in the React markdown render
 - **`on_new_window` (`target="_blank"`):** never create a second WKWebView; open every `http`/`https` URL in the system browser (including the web UI origin) and deny other schemes without opening.
 - **Deny without opening:** every other scheme (`javascript:`, `file:`, `mailto:`, …), matching the markdown sanitize allowlist that only admits `http`/`https` for authored hrefs.
 - Keep Tauri `custom-protocol` enabled; do not reintroduce `cfg(dev)` Dock icon override.
-- Capabilities stay `core:default` only; the frontend does not gain a JS `openUrl` surface. Rust handlers call the opener crate directly.
+- Capabilities stay window-scoped: `core:default` plus the overlay title-bar remote grants (`allow-start-dragging`, `allow-is-fullscreen` on `http://127.0.0.1:*`, [immersive title bar](../feature/2026-08-15-macos-immersive-title-bar.md)). The frontend does not gain a JS `openUrl` surface. Rust handlers call the opener crate directly.
 
 ## Alternatives considered
 

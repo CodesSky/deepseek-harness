@@ -206,7 +206,11 @@ describe('the shipped Web composition', () => {
       expect(toolNames(ctx, handle.agent).filter(name => name !== 'glob' && name !== 'grep')).toEqual([
         'ask_user_question', 'bash', 'create_goal', 'edit', 'exit_plan_mode',
         'get_goal', 'interrupt_agent', 'job_kill', 'job_list', 'job_output', 'list_agents', 'ralph', 'read', 'read_image', 'send_message', 'skill',
-        'subagent', 'subagent_fork', 'todo_write', 'update_goal', 'web_search',
+        'subagent', 'subagent_fork',
+        ...(process.platform === 'win32' ? [] : [
+          'terminal_close', 'terminal_list', 'terminal_open', 'terminal_read', 'terminal_send', 'terminal_signal',
+        ]),
+        'todo_write', 'update_goal', 'web_search',
         'workflow', 'write',
       ])
     } finally {
@@ -272,6 +276,11 @@ describe('the shipped Web composition', () => {
       ]))
       // And it keeps the standard agent's own tools rather than replacing them.
       expect(tools).toEqual(expect.arrayContaining(['bash', 'read', 'edit', 'skill']))
+      if (process.platform !== 'win32') {
+        expect(tools).toEqual(expect.arrayContaining([
+          'terminal_open', 'terminal_send', 'terminal_read', 'terminal_list', 'terminal_close', 'terminal_signal',
+        ]))
+      }
       expect(tools).not.toContain('str_replace_editor')
 
       // The preset's own authoring skill registers into ITS layer of the host

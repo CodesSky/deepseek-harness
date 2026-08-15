@@ -68,6 +68,14 @@ class StubSession implements TerminalBackendSession {
     return operation
   }
 
+  attach(_listener: (chunk: Uint8Array) => void): () => void {
+    return () => {}
+  }
+
+  async writeRaw(_data: string | Uint8Array): Promise<void> {}
+
+  async resize(_size: { cols: number; rows: number }): Promise<void> {}
+
   read() {
     return { text: 'history', totalLines: 1, lineBegin: 0, lineEnd: 1, truncated: false }
   }

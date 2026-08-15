@@ -79,6 +79,16 @@ describe('rpcErrorSchema', () => {
     expect(rpcErrorSchema.parse({ code: 'title-invalid', message: 'm', details: { sessionId: 's' } }).code).toBe('title-invalid')
     // The credentials producer still emits this code, so the branch has to stay.
     expect(rpcErrorSchema.parse({ code: 'credential-rejected', message: 'm', details: { ref: 'r' } }).code).toBe('credential-rejected')
+    expect(rpcErrorSchema.parse({
+      code: 'terminal-unavailable',
+      message: 'm',
+      details: { sessionId: 's', terminalSessionId: 'pty-1' },
+    }).code).toBe('terminal-unavailable')
+    expect(rpcErrorSchema.parse({
+      code: 'terminal-unavailable',
+      message: 'm',
+      details: { sessionId: 's' },
+    }).code).toBe('terminal-unavailable')
     expect(rpcErrorSchema.parse({ code: 'internal', message: 'm', details: {} }).code).toBe('internal')
   })
 
@@ -458,6 +468,21 @@ describe('events frame schemas', () => {
         { id: 'bash-1', kind: 'bash', label: 'pnpm run build', status: 'running', startedAt: 5 },
         { id: 'pty-send-2', kind: 'pty-send', label: 'send keys', status: 'failed', detail: 'exit code: 3', startedAt: 5, finishedAt: 9 },
       ] },
+      {
+        type: 'session/terminal-chunk',
+        sessionId: 's',
+        terminalSessionId: 'pty-1',
+        seq: 0,
+        dataBase64: Buffer.from('hi').toString('base64'),
+      },
+      {
+        type: 'session/terminal-chunk',
+        sessionId: 's',
+        terminalSessionId: 'pty-1',
+        seq: 1,
+        dataBase64: '',
+        overrun: true,
+      },
       { type: 'stream/error', error: { code: 'internal', message: 'm', details: {} } },
     ]
     for (const frame of frames) expect(muxFrameSchema.parse(frame)).toMatchObject({ type: frame.type })
@@ -474,6 +499,9 @@ describe('events frame schemas', () => {
       { type: 'session/jobs', sessionId: 's', jobs: [{ id: 'bash-1', kind: 'bash', label: 'l', status: 'pending', startedAt: 0 }] },
       { type: 'session/jobs', sessionId: 's', jobs: [{ id: 'bash-1', kind: 'bash', label: 'l', status: 'running', startedAt: -1 }] },
       { type: 'session/jobs', sessionId: 's', jobs: [{ id: 'bash-1', kind: 'bash', label: 'l', status: 'completed', startedAt: 0, finishedAt: 0.5 }] },
+      { type: 'session/terminal-chunk', sessionId: 's', terminalSessionId: '', seq: 0, dataBase64: '' },
+      { type: 'session/terminal-chunk', sessionId: 's', terminalSessionId: 'pty-1', seq: -1, dataBase64: '' },
+      { type: 'session/terminal-chunk', sessionId: 's', terminalSessionId: 'pty-1', seq: 0, dataBase64: '', overrun: false },
     ]) expect(() => muxFrameSchema.parse(invalid)).toThrow()
     expect(askUserQuestionItemSchema.parse({ id: 'q', question: 'Q?' }).id).toBe('q')
   })

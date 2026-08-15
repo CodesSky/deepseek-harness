@@ -1,7 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Desktop shell: own window only; no privileged host APIs.",
+  "description": "Desktop shell: own window only; overlay title-bar drag after navigate to dsh web.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "remote": {
+    "urls": ["http://127.0.0.1:*"]
+  },
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-is-fullscreen"
+  ]
 }

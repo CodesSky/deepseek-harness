@@ -1,0 +1,243 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--dsw-bg-elevated);
+  color: var(--dsw-fg-primary);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dsw-border-subtle);
+}
+
+.title {
+  font: var(--dsw-font-label);
+  margin-right: auto;
+}
+
+.select,
+.button {
+  font: var(--dsw-font-body-sm);
+  color: var(--dsw-fg-primary);
+  background: var(--dsw-bg-sunken);
+  border: 1px solid var(--dsw-border-subtle);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.button:hover {
+  background: var(--dsw-bg-hover);
+}
+
+.overrun {
+  font: var(--dsw-font-body-sm);
+  color: var(--dsw-fg-warning);
+  padding: 4px 12px;
+}
+
+.empty {
+  font: var(--dsw-font-body-sm);
+  color: var(--dsw-fg-secondary);
+  padding: 16px 12px;
+}
+
+.termHost {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+}
+
+.termHost :global(.xterm) {
+  height: 100%;
+}
+
+.termHost :global(.xterm-viewport) {
+  overflow-y: auto !important;
+}
+
+/* Brand lock + Terminal icon: fixed overlay on the hero, or inline beside
+   Session log on live sessions. Brand is decorative (pointer-events: none)
+   so it never steals clicks from the Terminal button or drag chrome.
+   top: 10 centers the 32px Terminal button on the traffic-light mid-line
+   (center 26) shared with the sidebar panel toggle. */
+.chromeCluster {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.chromeClusterInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.chromeBrand {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+  pointer-events: none;
+}
+
+/* Match sidebar `.iconButton` (New Session / panel toggle): circular hit
+   target, transparent idle, semi-transparent gray hover. Keep 32px so
+   top:10 still centers on the traffic-light mid-line (center 26). */
+.chrome,
+.chromeUtility {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--dsw-fg-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.chrome[data-active='true'],
+.chrome:hover,
+.chromeUtility[data-active='true'],
+.chromeUtility:hover {
+  color: var(--dsw-fg-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 100%;
+  height: min(40vh, 360px);
+  min-height: 180px;
+  background: #0d1117;
+  color: #e6edf3;
+  border-top: 1px solid var(--dsw-border-subtle);
+}
+
+/* Author `display: flex` otherwise overrides the UA `[hidden]` rule, so the
+   dock stays painted and clickable after actions.close() sets hidden. */
+.dock[hidden],
+.dock[data-open='false'] {
+  display: none !important;
+}
+
+.dockBar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(230, 237, 243, 0.12);
+  background: #161b22;
+}
+
+.dockLabel {
+  font: var(--dsw-font-label);
+  color: rgba(230, 237, 243, 0.7);
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
+  font: var(--dsw-font-body-sm);
+  color: rgba(230, 237, 243, 0.7);
+  background: transparent;
+  border: 0;
+  border-radius: 4px 4px 0 0;
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[data-active='true'] {
+  color: #e6edf3;
+  background: #0d1117;
+}
+
+.tabClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.tabClose:hover {
+  opacity: 1;
+  background: rgba(230, 237, 243, 0.12);
+}
+
+.iconButton {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--dsw-font-label);
+  color: rgba(230, 237, 243, 0.8);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: rgba(230, 237, 243, 0.12);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dockTermHost {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 8px 8px;
+}
+
+/* Inactive per-tab hosts keep their xterm buffer mounted but must not take
+   flex space or override `[hidden]` the way `.dock` did before the fix. */
+.dockTermHost[hidden] {
+  display: none !important;
+}
+
+.dockTermHost :global(.xterm) {
+  height: 100%;
+}
+
+.dockTermHost :global(.xterm-viewport) {
+  overflow-y: auto !important;
+}

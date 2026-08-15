@@ -24,13 +24,23 @@ const FILE_REFERENCE_PROMPT = fileURLToPath(new URL(
   './snapshots/web-runtime-context/file-reference-prompt.expected.md', import.meta.url,
 ))
 
+const PTY_TOOLS = process.platform === 'win32' ? [] : [
+  'terminal_close',
+  'terminal_list',
+  'terminal_open',
+  'terminal_read',
+  'terminal_send',
+  'terminal_signal',
+]
+
 /**
  * The catalog the shipped Web composition puts in front of the model, minus the
  * ripgrep-dependent pair below. The absences are deliberate, not incidental
  * gaps: the `cordis_*` toolset executes model-written JavaScript that no
  * sandbox row confines, `web_fetch` chooses its own request target, and
  * `mcp_*` servers spawn outside `ctx.shell`. The composition Agent Note owns the
- * rationale and its sources.
+ * rationale and its sources. Persistent PTY tools join on Linux/macOS via the
+ * default `standard` preset; Windows keeps them off until ConPTY ships.
  */
 const EXPECTED_TOOLS = [
   'ask_user_question',
@@ -51,6 +61,7 @@ const EXPECTED_TOOLS = [
   'skill',
   'subagent',
   'subagent_fork',
+  ...PTY_TOOLS,
   'todo_write',
   'update_goal',
   'web_search',

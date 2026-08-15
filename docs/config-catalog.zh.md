@@ -2261,6 +2261,11 @@ export interface Config {
   shellPath?: string
   /** Shell arguments (default: `--noprofile --norc -i`). */
   shellArgs?: string[]
+  /**
+   * Environment profile for spawned shells (default: `controlled`).
+   * Use `user` for Host-owned interactive UI terminals.
+   */
+  profile?: ShellProfile
   /** Terminal rows. */
   rows?: number
   /** Terminal columns. */
@@ -2287,9 +2292,16 @@ export interface Config {
   /** Grace before teardown escalates to `SIGKILL`. */
   disposeGraceMs?: number
 }
+
+/**
+ * Shell environment profile.
+ * - `controlled`: model-facing PTY — dumb TERM, owned PS1, OSC readiness markers.
+ * - `user`: product UI shell — xterm-256color and the user's interactive profile.
+ */
+export type ShellProfile = 'controlled' | 'user'
 ```
 
-来源：[`packages/terminal/terminal-bash/src/config.ts:6`](../packages/terminal/terminal-bash/src/config.ts)
+来源：[`packages/terminal/terminal-bash/src/config.ts:13`](../packages/terminal/terminal-bash/src/config.ts)
 
 <a id="deepseek-aidsh-time-context"></a>
 
@@ -3056,6 +3068,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-skill`（[`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-terminal`（[`packages/client/ui-terminal/src/index.ts`](../packages/client/ui-terminal/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-theme`（[`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-tool`（[`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-trajectory`（[`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts)）

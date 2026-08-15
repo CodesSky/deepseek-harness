@@ -4,7 +4,8 @@ import { validateConfig } from '@deepseek-ai/dsh-terminal-bash/src/config.ts'
 
 function config(overrides: Partial<Config> = {}): Config {
   return {
-    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], rows: 40, cols: 160,
+    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], profile: 'controlled',
+    rows: 40, cols: 160,
     scrollbackLines: 100, scrollbackMaxBytes: 1024, maxReadBytes: 512,
     pollIntervalMs: 10, exactProbeAfterMs: 20, idleSilenceMs: 100, handoffGraceMs: 50, timeoutMs: 1000,
     disposeGraceMs: 100,

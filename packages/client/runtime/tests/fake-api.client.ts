@@ -174,6 +174,21 @@ export class FakeApiClient implements IApiClient {
     interrupt: (payload: unknown) => this.record('subagent.interrupt', payload, this.onSubagentInterrupt(payload)),
   }
 
+  readonly terminals: IApiClient['terminals'] = {
+    open: () => Promise.resolve(ok({
+      sessionId: '__dsh_user_shell__' as SessionId,
+      terminalSessionId: 'pty-fake',
+      name: 'zsh',
+      type: 'user-shell',
+    })),
+    list: () => Promise.resolve(ok({ sessions: [] })),
+    attach: () => Promise.resolve(ok({ attached: true as const })),
+    detach: () => Promise.resolve(ok({ detached: true as const })),
+    write: () => Promise.resolve(ok({ ok: true as const })),
+    resize: () => Promise.resolve(ok({ ok: true as const })),
+    close: () => Promise.resolve(ok({ closed: true as const })),
+  }
+
   readonly host: IApiClient['host'] = {
     describe: (payload: unknown) => this.record('host.describe', payload, this.onDescribe(payload)),
     pickDirectory: (payload: unknown) => this.record('host.pickDirectory', payload, this.onPickDirectory(payload)),

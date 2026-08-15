@@ -140,6 +140,21 @@ export class FakeApiClient implements IApiClient {
     }))),
   }
 
+  readonly terminals: IApiClient['terminals'] = {
+    open: (payload: unknown) => this.record('terminal.open', payload, Promise.resolve(ok({
+      sessionId: '__dsh_user_shell__' as SessionId,
+      terminalSessionId: 'pty-fake',
+      name: 'zsh',
+      type: 'user-shell',
+    }))),
+    list: (payload: unknown) => this.record('terminal.list', payload, Promise.resolve(ok({ sessions: [] }))),
+    attach: (payload: unknown) => this.record('terminal.attach', payload, Promise.resolve(ok({ attached: true as const }))),
+    detach: (payload: unknown) => this.record('terminal.detach', payload, Promise.resolve(ok({ detached: true as const }))),
+    write: (payload: unknown) => this.record('terminal.write', payload, Promise.resolve(ok({ ok: true as const }))),
+    resize: (payload: unknown) => this.record('terminal.resize', payload, Promise.resolve(ok({ ok: true as const }))),
+    close: (payload: unknown) => this.record('terminal.close', payload, Promise.resolve(ok({ closed: true as const }))),
+  }
+
   readonly host: IApiClient['host'] = {
     describe: payload => this.record('host.describe', payload, this.onDescribe(payload)),
     pickDirectory: payload => this.record('host.pickDirectory', payload, this.onPickDirectory(payload)),

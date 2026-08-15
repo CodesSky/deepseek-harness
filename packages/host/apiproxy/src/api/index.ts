@@ -17,11 +17,13 @@ import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
 import type { DownloadsApi } from './downloads.ts'
 import type { ClientResponse, RpcReceipt } from './rpc.ts'
+import type { TerminalsApi } from './terminals.ts'
 
 /** Root interface of the unified API. New client-request domain = one new file pair + one field here + one map row. */
 export interface ApiProxy {
   sessions: SessionsApi
   subagents: SubagentsApi
+  terminals: TerminalsApi
   host: HostApi
   workspace: WorkspaceApi
   skills: SkillsApi
@@ -53,6 +55,8 @@ export type {
   SubagentPromptReceipt, SubagentsApi,
 } from './subagents.ts'
 export type { JobView } from './jobs.ts'
+export type { TerminalsApi, TerminalUiSessionView, TerminalUiWriteData } from './terminals.ts'
+export { USER_SHELL_BACKEND_TYPE, USER_SHELL_SESSION_ID } from './terminals.ts'
 export type { WorkspaceApi, WorkspaceId, WorkspaceView } from './workspace.ts'
 export type { SkillsApi, SkillEntry } from './skills.ts'
 export type { AgentPresetsApi, AgentPresetEntry } from './agent-presets.ts'

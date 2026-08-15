@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-15-stale-web-frontend-seed-drops-plugin-icons.md
+2026-08-15-stale-web-frontend-seed-drops-plugin-icons.md: 7c7c0a17bc76c4a11dc4c99c7b504659c32a852c
+2026-08-15-stale-web-frontend-seed-drops-plugin-icons.zh.md: 9b6a8c6ae0fa3a9dfa20b2fc7d7d7fad88ddcd0f

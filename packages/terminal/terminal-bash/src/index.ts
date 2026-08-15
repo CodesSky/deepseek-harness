@@ -52,19 +52,32 @@ function ensureSandboxModeFence(ctx: Context, owner: Agent): void {
   }, { global: true })
 }
 
-function childEnvironment(spec: TerminalBackendSpawnSpec): Record<string, string> {
+function childEnvironment(
+  spec: TerminalBackendSpawnSpec,
+  profile: ResolvedConfig['profile'],
+): Record<string, string> {
   // The subprocess provider supplies its own scrubbed ambient base; these are
   // deliberate terminal-specific overrides layered after it.
-  return {
-    TERM: 'dumb',
+  const shared = {
     PAGER: 'cat',
     GIT_PAGER: 'cat',
-    PS1: CONTROLLED_PROMPT,
-    PROMPT_COMMAND: 'printf "\\033]133;D;%s\\007" "$?"',
     BASH_SILENCE_DEPRECATION_WARNING: '1',
     DSH_SHELL: '1',
     DSH_SESSION_ID: spec.owner.id,
     DSH_PTY_SESSION_ID: spec.sessionId,
+  }
+  if (profile === 'user') {
+    return {
+      ...shared,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    }
+  }
+  return {
+    ...shared,
+    TERM: 'dumb',
+    PS1: CONTROLLED_PROMPT,
+    PROMPT_COMMAND: 'printf "\\033]133;D;%s\\007" "$?"',
   }
 }
 
@@ -125,7 +138,7 @@ export class BashTerminalBackend implements TerminalBackend {
     const terminal = await this.spawnTerminal({
       argv,
       cwd: spec.cwd ?? policy.workspaceRoot,
-      env: childEnvironment(spec),
+      env: childEnvironment(spec, this.config.profile),
       rows: this.config.rows,
       cols: this.config.cols,
       graceMs: this.config.disposeGraceMs,
