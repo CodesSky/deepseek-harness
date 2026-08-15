@@ -803,7 +803,7 @@ describe('envelope observation', () => {
 })
 
 /** Test client that records the last minted rpcId for scripted JSON replies. */
-class RememberedRpcIdClient extends AbstractApiClient {
+abstract class RememberedRpcIdClient extends AbstractApiClient {
   lastMinted = ''
   protected override mintRpcId(): ReturnType<AbstractApiClient['mintRpcId']> {
     const id = super.mintRpcId()
