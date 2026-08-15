@@ -13,6 +13,13 @@ import { TerminalDock, type TerminalDockProps } from '../src/client/TerminalDock
 import { createTerminalPanelStore, type TerminalPanelState } from '../src/client/store.ts'
 import { zh } from '../src/client/locales.ts'
 
+/** HTML `hidden` on a per-tab xterm host. */
+function hostHidden(sessionId: string): boolean {
+  const host = document.querySelector(`[data-terminal-session-id="${sessionId}"]`)
+  if (!(host instanceof HTMLElement)) throw new Error(`missing host ${sessionId}`)
+  return host.hasAttribute('hidden')
+}
+
 const termLifecycle = vi.hoisted(() => ({
   dispose: vi.fn(),
   refresh: vi.fn(),
@@ -283,8 +290,8 @@ describe('TerminalDock open lifecycle', () => {
 
     const hosts = document.querySelectorAll('[data-terminal-session-id]')
     expect(hosts).toHaveLength(2)
-    expect(document.querySelector('[data-terminal-session-id="pty-1"]')?.hidden).toBe(true)
-    expect(document.querySelector('[data-terminal-session-id="pty-2"]')?.hidden).toBe(false)
+    expect(hostHidden('pty-1')).toBe(true)
+    expect(hostHidden('pty-2')).toBe(false)
 
     termLifecycle.reset.mockClear()
     termLifecycle.fit.mockClear()
@@ -293,8 +300,8 @@ describe('TerminalDock open lifecycle', () => {
     fireEvent.click(screen.getByRole('tab', { name: /zsh-1/ }))
     await waitFor(() => {
       expect(store.getSnapshot().selectedId).toBe('pty-1')
-      expect(document.querySelector('[data-terminal-session-id="pty-1"]')?.hidden).toBe(false)
-      expect(document.querySelector('[data-terminal-session-id="pty-2"]')?.hidden).toBe(true)
+      expect(hostHidden('pty-1')).toBe(false)
+      expect(hostHidden('pty-2')).toBe(true)
     })
     await waitFor(() => {
       expect(termLifecycle.fit).toHaveBeenCalled()

@@ -102,6 +102,6 @@ describe('ui-terminal browser half', () => {
 
 describe('ui-terminal node half', () => {
   it('is an inert apply (client bundle owns runtime)', () => {
-    expect(() => { applyNode({} as never) }).not.toThrow()
+    expect(() => { applyNode() }).not.toThrow()
   })
 })

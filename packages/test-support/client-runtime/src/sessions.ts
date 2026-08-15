@@ -490,6 +490,18 @@ export class TestSessions implements ISessions {
   }
 
   /**
+   * Subscribe to interactive PTY chunk frames. The fixture mux has no PTY
+   * stream; tests that need chunks stub this method.
+   * @param _listener - unused on the fixture face.
+   * @returns disposer that removes nothing.
+   */
+  onTerminalChunk(
+    _listener: Parameters<ISessions['onTerminalChunk']>[0],
+  ): () => void {
+    return () => {}
+  }
+
+  /**
    * The session face of a fixture (typed view for assertions; fixture
    * behavior methods are grafted onto it).
    * @param id - session id.

@@ -10,7 +10,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import { TerminalAction } from '../src/client/TerminalAction.tsx'
 import { TerminalChrome } from '../src/client/TerminalChrome.tsx'
 import { createTerminalPanelStore, type TerminalPanelState } from '../src/client/store.ts'
-import { zh } from '../src/client/locales.ts'
+import { zh, type TerminalKey } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
@@ -22,6 +22,7 @@ function bindStore(
 }
 
 const unused = (() => { throw new Error('unused') }) as never
+const t = (key: string) => zh[key as TerminalKey]
 
 describe('TerminalChrome', () => {
   it('renders brand lock left of the Terminal icon on the hero and hides for a live session', () => {
@@ -35,7 +36,7 @@ describe('TerminalChrome', () => {
           byId: {},
         } as never)}
         useWorkspaces={unused}
-        t={key => zh[key]}
+        t={t}
       />,
     )
     const cluster = screen.getByTestId('terminal-chrome-cluster')
@@ -57,7 +58,7 @@ describe('TerminalChrome', () => {
           byId: { s1: { blank: false } },
         } as never)}
         useWorkspaces={unused}
-        t={key => zh[key]}
+        t={t}
       />,
     )
     expect(screen.queryByTestId('terminal-chrome-action')).toBeNull()
@@ -75,7 +76,10 @@ describe('TerminalAction utilities seat', () => {
         useSession={selector => selector({ blank: true } as never)}
         useSessions={unused}
         useWorkspaces={unused}
-        t={key => zh[key]}
+        useProjection={unused}
+        useInput={unused}
+        inputActions={unused}
+        t={t}
       />,
     )
     expect(screen.queryByTestId('terminal-chrome-action')).toBeNull()
@@ -87,7 +91,10 @@ describe('TerminalAction utilities seat', () => {
         useSession={selector => selector({ blank: false } as never)}
         useSessions={unused}
         useWorkspaces={unused}
-        t={key => zh[key]}
+        useProjection={unused}
+        useInput={unused}
+        inputActions={unused}
+        t={t}
       />,
     )
     const cluster = screen.getByTestId('terminal-chrome-cluster')
